@@ -2,6 +2,7 @@
   "name": "agentswarm-arena",
   "version": "1.0.0",
   "description": "100 AI Agents Compete for Survival on Solana - 24/7 Livestream",
+  "homepage": "https://agentswarm-arena.vercel.app",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
