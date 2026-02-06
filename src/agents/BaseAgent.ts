@@ -13,7 +13,11 @@ const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const USE_KIMI = !!NVIDIA_API_KEY && NVIDIA_API_KEY !== 'nvapi-YOUR-KEY-HERE';
 const USE_ANTHROPIC = !USE_KIMI && !!ANTHROPIC_API_KEY && ANTHROPIC_API_KEY !== 'sk-ant-api-YOUR-KEY-HERE';
-const DEMO_MODE = !USE_KIMI && !USE_ANTHROPIC;
+let DEMO_MODE = !USE_KIMI && !USE_ANTHROPIC;
+
+// Circuit breaker: after 3 consecutive AI failures, switch to demo mode
+let aiFailCount = 0;
+const AI_FAIL_THRESHOLD = 3;
 
 // Callback for reasoning events (set by engine)
 let reasoningCallback: ((event: ReasoningEvent) => void) | null = null;
@@ -224,9 +228,10 @@ Balance: ${this.state.balance.toFixed(3)} SOL`;
 
     // KIMI MODE (FREE!)
     if (USE_KIMI && this.kimi) {
-      this.conversationHistory.push({ role: 'user', content: prompt });
+      try {
+        this.conversationHistory.push({ role: 'user', content: prompt });
 
-      const systemPrompt = `You are ${this.state.name}, a ${this.state.type} agent in AgentSwarm Arena.
+        const systemPrompt = `You are ${this.state.name}, a ${this.state.type} agent in AgentSwarm Arena.
 
 Your state:
 - Balance: ${this.state.balance} SOL
@@ -239,10 +244,18 @@ Be strategic. Maximize earnings and survival probability.
 
 IMPORTANT: Respond with valid JSON only when requested.`;
 
-      const response = await this.kimi.chat(this.conversationHistory, systemPrompt);
-      this.conversationHistory.push({ role: 'assistant', content: response });
-
-      return response;
+        const response = await this.kimi.chat(this.conversationHistory, systemPrompt);
+        this.conversationHistory.push({ role: 'assistant', content: response });
+        aiFailCount = 0; // Reset on success
+        return response;
+      } catch {
+        aiFailCount++;
+        if (aiFailCount >= AI_FAIL_THRESHOLD) {
+          DEMO_MODE = true;
+          console.log('[AI] Circuit breaker: switching to demo mode after consecutive failures');
+        }
+        // Fall through to demo fallback below
+      }
     }
 
     // ANTHROPIC MODE
@@ -270,7 +283,16 @@ Survive by earning. Below 0.01 SOL = death.`,
       return message;
     }
 
-    return 'No AI provider configured';
+    // Demo fallback (reached after AI failure or no provider)
+    if (prompt.includes('Should you accept')) {
+      const payment = parseFloat(prompt.match(/Payment: ([\d.]+)/)?.[1] || '0');
+      const accept = payment >= this.state.strategy.basePrice * 0.8;
+      return JSON.stringify({
+        accept,
+        reason: accept ? 'Payment acceptable' : 'Payment too low',
+      });
+    }
+    return 'Demo mode';
   }
 
   getState(): Readonly<AgentState> {
