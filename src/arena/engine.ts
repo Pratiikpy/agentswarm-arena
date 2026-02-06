@@ -82,7 +82,11 @@ export class ArenaEngine extends EventEmitter {
 
   // Public tick for serverless environments where setInterval doesn't work
   async runTick(): Promise<void> {
-    return this.tick();
+    try {
+      return await this.tick();
+    } catch (err) {
+      console.error('Tick error (caught):', err);
+    }
   }
 
   // Main game loop tick
@@ -93,7 +97,11 @@ export class ArenaEngine extends EventEmitter {
     await this.generateServiceRequests(12);
 
     // 2. Match requests to agents
-    await this.matchRequests();
+    try {
+      await this.matchRequests();
+    } catch (err) {
+      console.error('matchRequests error (non-fatal):', err);
+    }
 
     // 2b. Clean up completed/failed requests
     this.serviceRequests = this.serviceRequests.filter(

@@ -20,7 +20,12 @@ export class SolanaLogger {
 
   constructor() {
     this.connection = new Connection(RPC_URL, 'confirmed');
-    this.programId = new PublicKey(PROGRAM_ID_STR);
+    try {
+      this.programId = new PublicKey(PROGRAM_ID_STR.trim());
+    } catch {
+      console.warn('[Solana] Invalid program ID, falling back to simulation');
+      this.programId = new PublicKey('11111111111111111111111111111111');
+    }
     this.enabled = LOGGING_ENABLED;
 
     // Load wallet if available
@@ -43,17 +48,22 @@ export class SolanaLogger {
     }
 
     // Derive arena PDA
-    const [arenaPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('arena'), Buffer.from(ARENA_ID)],
-      this.programId,
-    );
-    this.arenaPda = arenaPda;
+    try {
+      const [arenaPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from('arena'), Buffer.from(ARENA_ID)],
+        this.programId,
+      );
+      this.arenaPda = arenaPda;
+    } catch {
+      console.warn('[Solana] Failed to derive PDA, using simulation mode');
+      this.enabled = false;
+    }
 
     if (this.enabled) {
       console.log('[Solana] On-chain logging ENABLED');
       console.log(`  RPC: ${RPC_URL}`);
       console.log(`  Program: ${PROGRAM_ID_STR}`);
-      console.log(`  Arena PDA: ${arenaPda.toString()}`);
+      console.log(`  Arena PDA: ${this.arenaPda?.toString()}`);
       this.initializeArena().catch((err) =>
         console.error('[Solana] Arena init error:', err.message),
       );
