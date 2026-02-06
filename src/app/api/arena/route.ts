@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   const arena = await waitForArena();
 
   const stream = new ReadableStream({
-    start(controller) {
+    async start(controller) {
       let closed = false;
 
       const send = (type: string, data: any) => {
@@ -21,14 +21,19 @@ export async function GET(request: Request) {
             encoder.encode(`data: ${JSON.stringify({ type, data })}\n\n`)
           );
         } catch {
-          // Stream closed
+          closed = true;
         }
       };
+
+      // Cleanup on abort
+      request.signal.addEventListener('abort', () => {
+        closed = true;
+      });
 
       // Send initial stats
       send('stats', arena.getStats());
 
-      // Listen to arena events
+      // Collect events from arena
       const onTransaction = (tx: any) => send('transaction', tx);
       const onAgentDied = (agent: any) => send('death', agent);
       const onStats = (stats: any) => send('stats', stats);
@@ -55,19 +60,7 @@ export async function GET(request: Request) {
       arena.on('history', onHistory);
       arena.on('reasoning', onReasoning);
 
-      // Heartbeat every 15s to keep connection alive
-      const heartbeat = setInterval(() => {
-        if (closed) return;
-        try {
-          controller.enqueue(encoder.encode(`: heartbeat\n\n`));
-        } catch {
-          // Stream closed
-        }
-      }, 15000);
-
-      // Cleanup on close
-      request.signal.addEventListener('abort', () => {
-        closed = true;
+      const cleanup = () => {
         arena.off('transaction', onTransaction);
         arena.off('agent-died', onAgentDied);
         arena.off('stats', onStats);
@@ -80,13 +73,30 @@ export async function GET(request: Request) {
         arena.off('agents', onAgents);
         arena.off('history', onHistory);
         arena.off('reasoning', onReasoning);
-        clearInterval(heartbeat);
+      };
+
+      // Drive ticks within this request (works on both local and Vercel)
+      // Run up to 20 ticks per connection
+      for (let i = 0; i < 20 && !closed; i++) {
+        try {
+          await arena.runTick();
+        } catch (err) {
+          console.error('Arena tick error:', err);
+        }
+        // Wait between ticks (2s for fast action)
+        if (!closed) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
+
+      cleanup();
+      if (!closed) {
         try {
           controller.close();
         } catch {
           // Already closed
         }
-      });
+      }
     },
   });
 

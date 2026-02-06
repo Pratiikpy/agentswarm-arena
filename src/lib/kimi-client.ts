@@ -27,6 +27,9 @@ export class KimiClient {
       : messages;
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+
       const response = await fetch(`${this.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -39,7 +42,10 @@ export class KimiClient {
           temperature: 0.7,
           max_tokens: 500, // Keep responses concise
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeout);
 
       if (!response.ok) {
         const error = await response.text();

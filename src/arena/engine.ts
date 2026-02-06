@@ -80,6 +80,11 @@ export class ArenaEngine extends EventEmitter {
     this.emit('stopped');
   }
 
+  // Public tick for serverless environments where setInterval doesn't work
+  async runTick(): Promise<void> {
+    return this.tick();
+  }
+
   // Main game loop tick
   private async tick(): Promise<void> {
     this.tickCount++;

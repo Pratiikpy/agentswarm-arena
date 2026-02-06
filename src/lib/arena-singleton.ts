@@ -11,11 +11,10 @@ export function getArenaEngine(): ArenaEngine {
   if (!global.arenaEngine) {
     global.arenaEngine = new ArenaEngine();
 
-    // Initialize with 100 agents
+    // Initialize agents but DON'T start setInterval ticking
+    // Ticks are driven by the SSE route handler for Vercel compatibility
     global.arenaReady = global.arenaEngine.initialize(100).then(() => {
       console.log('✅ Arena initialized with 100 agents');
-      global.arenaEngine!.start();
-      console.log('🚀 Arena started!');
     });
   }
 
