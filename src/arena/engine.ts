@@ -79,8 +79,7 @@ export class ArenaEngine extends EventEmitter {
     await this.matchRequests();
 
     // 3. Process deaths
-    this.processDea
-ths();
+    this.processDeaths();
 
     // 4. Emit stats update
     this.emitStats();
