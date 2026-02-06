@@ -57,63 +57,96 @@ export default function ArenaPage() {
   const [activeTab, setActiveTab] = useState<'feed' | 'charts' | 'reasoning' | 'bet'>('feed');
 
   useEffect(() => {
-    const eventSource = new EventSource('/api/arena');
+    let cleanup: (() => void) | null = null;
+    let sseWorking = false;
+    let pollInterval: NodeJS.Timeout | null = null;
 
-    eventSource.onopen = () => {
-      setConnected(true);
-    };
-
-    eventSource.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-
-        switch (message.type) {
-          case 'stats':
-            setStats(message.data);
-            break;
-          case 'transaction':
-            setTransactions((prev) => [message.data, ...prev].slice(0, 50));
-            break;
-          case 'death':
-            setDeaths((prev) => [message.data, ...prev].slice(0, 20));
-            break;
-          case 'scam':
-            setScams((prev) => [{ ...message.data, timestamp: Date.now() }, ...prev].slice(0, 20));
-            break;
-          case 'cartel':
-            setCartels((prev) => [{ ...message.data, timestamp: Date.now() }, ...prev].slice(0, 10));
-            break;
-          case 'alliance-formed':
-            setAlliances((prev) => [{ ...message.data, type: 'formed' as const, timestamp: Date.now() }, ...prev].slice(0, 20));
-            break;
-          case 'alliance-broken':
-            setAlliances((prev) => [{ ...message.data, type: 'broken' as const, timestamp: Date.now() }, ...prev].slice(0, 20));
-            break;
-          case 'strategy-changed':
-            setStrategies((prev) => [{ ...message.data, timestamp: Date.now() }, ...prev].slice(0, 15));
-            break;
-          case 'agents':
-            setAllAgents(message.data);
-            break;
-          case 'history':
-            setHistory(message.data);
-            break;
-          case 'reasoning':
-            setReasoning((prev) => [message.data, ...prev].slice(0, 30));
-            break;
-        }
-      } catch (error) {
-        console.error('Failed to parse SSE message:', error);
+    const handleMessage = (message: any) => {
+      switch (message.type) {
+        case 'stats':
+          setStats(message.data);
+          break;
+        case 'transaction':
+          sseWorking = true;
+          setTransactions((prev) => [message.data, ...prev].slice(0, 50));
+          break;
+        case 'death':
+          setDeaths((prev) => [message.data, ...prev].slice(0, 20));
+          break;
+        case 'scam':
+          setScams((prev) => [{ ...message.data, timestamp: Date.now() }, ...prev].slice(0, 20));
+          break;
+        case 'cartel':
+          setCartels((prev) => [{ ...message.data, timestamp: Date.now() }, ...prev].slice(0, 10));
+          break;
+        case 'alliance-formed':
+          setAlliances((prev) => [{ ...message.data, type: 'formed' as const, timestamp: Date.now() }, ...prev].slice(0, 20));
+          break;
+        case 'alliance-broken':
+          setAlliances((prev) => [{ ...message.data, type: 'broken' as const, timestamp: Date.now() }, ...prev].slice(0, 20));
+          break;
+        case 'strategy-changed':
+          setStrategies((prev) => [{ ...message.data, timestamp: Date.now() }, ...prev].slice(0, 15));
+          break;
+        case 'agents':
+          setAllAgents(message.data);
+          break;
+        case 'history':
+          setHistory(message.data);
+          break;
+        case 'reasoning':
+          setReasoning((prev) => [message.data, ...prev].slice(0, 30));
+          break;
       }
     };
 
-    eventSource.onerror = () => {
-      setConnected(false);
+    // Start SSE connection
+    const eventSource = new EventSource('/api/arena');
+    eventSource.onopen = () => setConnected(true);
+    eventSource.onmessage = (event) => {
+      try {
+        handleMessage(JSON.parse(event.data));
+      } catch {}
+    };
+    eventSource.onerror = () => setConnected(false);
+
+    // Polling fallback: if SSE hasn't delivered transactions in 8s, switch to polling
+    const fallbackTimeout = setTimeout(() => {
+      if (!sseWorking) {
+        console.log('SSE not delivering, switching to polling');
+        eventSource.close();
+        const poll = async () => {
+          try {
+            const res = await fetch('/api/arena/poll');
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.stats) {
+              setStats(data.stats);
+              setConnected(true);
+            }
+            if (data.transactions) {
+              setTransactions((prev) => {
+                const newTxs = data.transactions.filter(
+                  (tx: any) => !prev.some((p) => p.id === tx.id)
+                );
+                return [...newTxs, ...prev].slice(0, 50);
+              });
+            }
+            if (data.history) setHistory(data.history);
+          } catch {}
+        };
+        poll();
+        pollInterval = setInterval(poll, 3000);
+      }
+    }, 8000);
+
+    cleanup = () => {
+      eventSource.close();
+      clearTimeout(fallbackTimeout);
+      if (pollInterval) clearInterval(pollInterval);
     };
 
-    return () => {
-      eventSource.close();
-    };
+    return () => cleanup?.();
   }, []);
 
   if (!stats) {

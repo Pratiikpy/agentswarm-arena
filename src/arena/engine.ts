@@ -526,4 +526,12 @@ export class ArenaEngine extends EventEmitter {
   getBalanceHistory(): BalanceSnapshot[] {
     return [...this.balanceHistory];
   }
+
+  getRecentTransactions(count: number): Transaction[] {
+    return this.transactions.slice(-count);
+  }
+
+  getHistory(): BalanceSnapshot[] {
+    return this.balanceHistory.slice(-50);
+  }
 }

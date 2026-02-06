@@ -9,17 +9,41 @@ export default function HomePage() {
   const [agents, setAgents] = useState<AgentState[]>([]);
 
   useEffect(() => {
-    const eventSource = new EventSource('/api/arena');
+    let sseWorking = false;
+    let pollInterval: NodeJS.Timeout | null = null;
 
+    const eventSource = new EventSource('/api/arena');
     eventSource.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        if (message.type === 'stats') setStats(message.data);
+        if (message.type === 'stats') { setStats(message.data); sseWorking = true; }
         if (message.type === 'agents') setAgents(message.data);
       } catch {}
     };
 
-    return () => eventSource.close();
+    // Polling fallback for Vercel
+    const fallback = setTimeout(() => {
+      if (!sseWorking) {
+        eventSource.close();
+        const poll = async () => {
+          try {
+            const res = await fetch('/api/arena/poll');
+            if (res.ok) {
+              const data = await res.json();
+              if (data.stats) setStats(data.stats);
+            }
+          } catch {}
+        };
+        poll();
+        pollInterval = setInterval(poll, 3000);
+      }
+    }, 6000);
+
+    return () => {
+      eventSource.close();
+      clearTimeout(fallback);
+      if (pollInterval) clearInterval(pollInterval);
+    };
   }, []);
 
   // Generate a 10x10 grid of agent dots
