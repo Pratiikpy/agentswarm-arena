@@ -20,6 +20,9 @@ export class SolanaLogger {
   private arenaPda: PublicKey | null = null;
   private txCount: number = 0;
   private initError: string = '';
+  private cachedBlockhash: string | null = null;
+  private blockhashCachedAt: number = 0;
+  private readonly BLOCKHASH_CACHE_MS = 30_000; // 30 seconds (blockhash valid ~60s)
 
   constructor() {
     this.connection = new Connection(RPC_URL, 'confirmed');
@@ -84,6 +87,17 @@ export class SolanaLogger {
     }
   }
 
+  private async getBlockhash(): Promise<string> {
+    const now = Date.now();
+    if (this.cachedBlockhash && now - this.blockhashCachedAt < this.BLOCKHASH_CACHE_MS) {
+      return this.cachedBlockhash;
+    }
+    const { blockhash } = await this.connection.getLatestBlockhash();
+    this.cachedBlockhash = blockhash;
+    this.blockhashCachedAt = now;
+    return blockhash;
+  }
+
   private async initializeArena(): Promise<void> {
     if (!this.enabled || !this.wallet) return;
 
@@ -130,7 +144,7 @@ export class SolanaLogger {
 
       const tx = new Transaction().add(ix);
       tx.feePayer = this.wallet.publicKey;
-      tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+      tx.recentBlockhash = await this.getBlockhash();
 
       tx.sign(this.wallet);
       const sig = await this.connection.sendRawTransaction(tx.serialize());
@@ -218,7 +232,7 @@ export class SolanaLogger {
 
       const tx = new Transaction().add(ix);
       tx.feePayer = this.wallet.publicKey;
-      tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+      tx.recentBlockhash = await this.getBlockhash();
 
       tx.sign(this.wallet);
       const sig = await this.connection.sendRawTransaction(tx.serialize(), {
@@ -300,7 +314,7 @@ export class SolanaLogger {
 
       const tx = new Transaction().add(ix);
       tx.feePayer = this.wallet.publicKey;
-      tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+      tx.recentBlockhash = await this.getBlockhash();
 
       tx.sign(this.wallet);
       const sig = await this.connection.sendRawTransaction(tx.serialize(), {
@@ -359,7 +373,7 @@ export class SolanaLogger {
 
       const tx = new Transaction().add(ix);
       tx.feePayer = this.wallet.publicKey;
-      tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+      tx.recentBlockhash = await this.getBlockhash();
 
       tx.sign(this.wallet);
       const sig = await this.connection.sendRawTransaction(tx.serialize(), {
