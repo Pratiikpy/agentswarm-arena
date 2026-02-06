@@ -79,6 +79,10 @@ export class SolanaLogger {
       console.log(`  RPC: ${RPC_URL}`);
       console.log(`  Program: ${PROGRAM_ID_STR}`);
       console.log(`  Arena PDA: ${this.arenaPda?.toString()}`);
+      // Pre-fetch blockhash + initialize arena
+      this.getBlockhash()
+        .then((bh) => console.log(`[Solana] Blockhash pre-cached: ${bh.slice(0, 12)}...`))
+        .catch(() => {});
       this.initializeArena().catch((err) =>
         console.error('[Solana] Arena init error:', err.message),
       );
@@ -92,10 +96,16 @@ export class SolanaLogger {
     if (this.cachedBlockhash && now - this.blockhashCachedAt < this.BLOCKHASH_CACHE_MS) {
       return this.cachedBlockhash;
     }
-    const { blockhash } = await this.connection.getLatestBlockhash();
-    this.cachedBlockhash = blockhash;
-    this.blockhashCachedAt = now;
-    return blockhash;
+    try {
+      const { blockhash } = await this.connection.getLatestBlockhash();
+      this.cachedBlockhash = blockhash;
+      this.blockhashCachedAt = now;
+      return blockhash;
+    } catch {
+      // If fetch fails but we have a stale blockhash, use it (valid ~90s on Solana)
+      if (this.cachedBlockhash) return this.cachedBlockhash;
+      throw new Error('No blockhash available');
+    }
   }
 
   private async initializeArena(): Promise<void> {
