@@ -10,11 +10,9 @@ export async function GET() {
   const arena = await waitForArena();
 
   // Run a tick
-  let tickError = null;
   try {
     await arena.runTick();
-  } catch (err: any) {
-    tickError = err?.message || String(err);
+  } catch (err) {
     console.error('Arena tick error:', err);
   }
 
@@ -22,12 +20,10 @@ export async function GET() {
   const stats = arena.getStats();
   const recentTransactions = arena.getRecentTransactions(10);
   const history = arena.getHistory();
-  const debug = arena.getDebugInfo();
 
   return Response.json({
     stats,
     transactions: recentTransactions,
     history,
-    debug: { ...debug, tickError },
   });
 }
