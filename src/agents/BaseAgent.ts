@@ -1,17 +1,25 @@
-// Base Agent Class - All agents inherit from this
+// Base Agent Class - Supports Anthropic OR NVIDIA Kimi 2.5
 
 import { AgentState, AgentStatus, ServiceType, ServiceRequest, AgentStrategy } from '../types/agent';
 import Anthropic from '@anthropic-ai/sdk';
+import { KimiClient } from '../lib/kimi-client';
 
 const SURVIVAL_THRESHOLD = 0.1; // SOL
 const CRITICAL_THRESHOLD = 0.01; // SOL
-const DEMO_MODE = !process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === 'sk-ant-api-YOUR-KEY-HERE';
+
+// Determine AI provider
+const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const USE_KIMI = !!NVIDIA_API_KEY && NVIDIA_API_KEY !== 'nvapi-YOUR-KEY-HERE';
+const USE_ANTHROPIC = !USE_KIMI && !!ANTHROPIC_API_KEY && ANTHROPIC_API_KEY !== 'sk-ant-api-YOUR-KEY-HERE';
+const DEMO_MODE = !USE_KIMI && !USE_ANTHROPIC;
 
 export class BaseAgent {
   protected state: AgentState;
-  protected anthropic: Anthropic | null;
-  protected conversationHistory: Anthropic.MessageParam[] = [];
-  protected alliances: Set<string> = new Set(); // Agent IDs we're allied with
+  protected anthropic: Anthropic | null = null;
+  protected kimi: KimiClient | null = null;
+  protected conversationHistory: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+  protected alliances: Set<string> = new Set();
 
   constructor(
     id: string,
@@ -25,7 +33,7 @@ export class BaseAgent {
       name: `${type.charAt(0).toUpperCase() + type.slice(1)}-${id.slice(-4)}`,
       balance: initialBalance,
       status: 'alive',
-      reputation: 50, // Start neutral
+      reputation: 50,
       servicesCompleted: 0,
       servicesRequested: 0,
       earnings: 0,
@@ -42,27 +50,22 @@ export class BaseAgent {
       },
     };
 
-    // Initialize Anthropic only if not in demo mode
-    if (!DEMO_MODE) {
-      this.anthropic = new Anthropic({
-        apiKey: process.env.ANTHROPIC_API_KEY || '',
-      });
+    // Initialize AI provider
+    if (USE_KIMI) {
+      this.kimi = new KimiClient(NVIDIA_API_KEY!);
+      console.log(`✨ ${this.state.name} - Using NVIDIA Kimi 2.5 (FREE!)`);
+    } else if (USE_ANTHROPIC) {
+      this.anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY! });
+      console.log(`🤖 ${this.state.name} - Using Anthropic Claude`);
     } else {
-      this.anthropic = null;
-      console.log(`[DEMO MODE] ${this.state.name} - Using simulated AI decisions`);
+      console.log(`[DEMO] ${this.state.name} - Using simulated decisions`);
     }
   }
 
-  // Update balance and check survival
   updateBalance(amount: number): void {
     this.state.balance += amount;
-
-    if (amount > 0) {
-      this.state.earnings += amount;
-    } else {
-      this.state.expenses += Math.abs(amount);
-    }
-
+    if (amount > 0) this.state.earnings += amount;
+    else this.state.expenses += Math.abs(amount);
     this.updateStatus();
   }
 
@@ -77,12 +80,10 @@ export class BaseAgent {
     }
   }
 
-  // Decide whether to accept a service request
   async shouldAcceptRequest(request: ServiceRequest): Promise<boolean> {
     if (this.state.status === 'dead') return false;
     if (request.payment < this.state.strategy.minPrice) return false;
 
-    // If critical, accept any reasonable offer
     if (this.state.status === 'critical') {
       return request.payment >= this.state.strategy.minPrice;
     }
@@ -92,15 +93,15 @@ export class BaseAgent {
       return request.payment >= this.state.strategy.basePrice * 0.8;
     }
 
-    // AI MODE: Use Claude to decide
+    // AI MODE: Use Kimi or Claude
     try {
       const decision = await this.makeDecision(
         `Service request: ${request.description}
-         Payment offered: ${request.payment} SOL
-         Your balance: ${this.state.balance} SOL
-         Your reputation: ${this.state.reputation}
+Payment: ${request.payment} SOL
+Your balance: ${this.state.balance} SOL
+Your reputation: ${this.state.reputation}
 
-         Should you accept? Respond with JSON: {"accept": true/false, "reason": "..."}`
+Should you accept? Respond ONLY with JSON: {"accept": true/false, "reason": "..."}`
       );
 
       const parsed = JSON.parse(decision);
@@ -110,7 +111,6 @@ export class BaseAgent {
     }
   }
 
-  // Calculate service price
   calculatePrice(serviceType: ServiceType, marketPrice: number): number {
     const { strategy } = this.state;
     let price = strategy.basePrice;
@@ -120,22 +120,16 @@ export class BaseAgent {
         price = marketPrice * 0.8;
         break;
       case 'premium':
-        if (this.state.reputation > 70) {
-          price = marketPrice * 1.5;
-        } else {
-          price = marketPrice;
-        }
+        price = this.state.reputation > 70 ? marketPrice * 1.5 : marketPrice;
         break;
       case 'balanced':
       default:
         price = marketPrice;
-        break;
     }
 
     return Math.max(strategy.minPrice, Math.min(strategy.maxPrice, price));
   }
 
-  // Execute service (implemented by subclasses)
   async executeService(request: ServiceRequest): Promise<string> {
     // DEMO MODE: Simple response
     if (DEMO_MODE) {
@@ -143,68 +137,87 @@ export class BaseAgent {
       this.updateBalance(request.payment);
       this.updateReputation(1);
 
-      return `[DEMO] ${this.state.type.toUpperCase()} SERVICE COMPLETE
+      return `[DEMO] ${this.state.type.toUpperCase()} SERVICE
 
 Task: ${request.description}
 Payment: ${request.payment} SOL
-Status: Success
 
 Agent: ${this.state.name}
-Balance: ${this.state.balance.toFixed(3)} SOL
-Reputation: ${this.state.reputation}`;
+Balance: ${this.state.balance.toFixed(3)} SOL`;
     }
 
     throw new Error('executeService must be implemented by subclass');
   }
 
-  // Make AI-powered decision
   protected async makeDecision(prompt: string): Promise<string> {
-    // DEMO MODE: Simulated decisions
-    if (DEMO_MODE || !this.anthropic) {
-      // Simple rule-based responses for demo
+    // DEMO MODE
+    if (DEMO_MODE) {
       if (prompt.includes('Should you accept')) {
-        const payment = parseFloat(prompt.match(/Payment offered: ([\d.]+)/)?.[1] || '0');
+        const payment = parseFloat(prompt.match(/Payment: ([\d.]+)/)?.[1] || '0');
         const accept = payment >= this.state.strategy.basePrice * 0.8;
         return JSON.stringify({
           accept,
-          reason: accept ? 'Payment is reasonable' : 'Payment too low',
+          reason: accept ? 'Payment acceptable' : 'Payment too low',
         });
       }
-      return 'Demo mode active';
+      return 'Demo mode';
     }
 
-    // AI MODE: Real Claude decisions
-    this.conversationHistory.push({ role: 'user', content: prompt });
+    // KIMI MODE (FREE!)
+    if (USE_KIMI && this.kimi) {
+      this.conversationHistory.push({ role: 'user', content: prompt });
 
-    const response = await this.anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 1000,
-      messages: this.conversationHistory,
-      system: `You are ${this.state.name}, a ${this.state.type} agent in AgentSwarm Arena.
+      const systemPrompt = `You are ${this.state.name}, a ${this.state.type} agent in AgentSwarm Arena.
 
-      State:
-      - Balance: ${this.state.balance} SOL
-      - Status: ${this.state.status}
-      - Reputation: ${this.state.reputation}
-      - Services: ${this.state.servicesCompleted}
+Your state:
+- Balance: ${this.state.balance} SOL
+- Status: ${this.state.status}
+- Reputation: ${this.state.reputation}
+- Services completed: ${this.state.servicesCompleted}
 
-      Survive by earning SOL. Below 0.01 SOL = death.
-      Be strategic. Maximize earnings and survival.`,
-    });
+Goal: Survive by earning SOL. Below 0.01 SOL = permanent death.
+Be strategic. Maximize earnings and survival probability.
 
-    const content = response.content[0];
-    const message = content.type === 'text' ? content.text : '';
-    this.conversationHistory.push({ role: 'assistant', content: message });
+IMPORTANT: Respond with valid JSON only when requested.`;
 
-    return message;
+      const response = await this.kimi.chat(this.conversationHistory, systemPrompt);
+      this.conversationHistory.push({ role: 'assistant', content: response });
+
+      return response;
+    }
+
+    // ANTHROPIC MODE
+    if (USE_ANTHROPIC && this.anthropic) {
+      const messages = this.conversationHistory.map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
+      messages.push({ role: 'user', content: prompt });
+
+      const response = await this.anthropic.messages.create({
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 500,
+        messages,
+        system: `You are ${this.state.name}, a ${this.state.type} agent competing for survival.
+Balance: ${this.state.balance} SOL | Status: ${this.state.status}
+Survive by earning. Below 0.01 SOL = death.`,
+      });
+
+      const content = response.content[0];
+      const message = content.type === 'text' ? content.text : '';
+      this.conversationHistory.push({ role: 'user', content: prompt });
+      this.conversationHistory.push({ role: 'assistant', content: message });
+
+      return message;
+    }
+
+    return 'No AI provider configured';
   }
 
-  // Get agent state
   getState(): Readonly<AgentState> {
     return { ...this.state };
   }
 
-  // Update reputation
   updateReputation(delta: number): void {
     this.state.reputation = Math.max(0, Math.min(100, this.state.reputation + delta));
   }
@@ -226,61 +239,45 @@ Reputation: ${this.state.reputation}`;
     return Array.from(this.alliances);
   }
 
-  // Check if should ally with another agent
   shouldFormAlliance(otherAgent: BaseAgent): boolean {
     const otherState = otherAgent.getState();
-
-    // Don't ally with dead agents
     if (otherState.status === 'dead') return false;
-
-    // Only ally with high-reputation agents
     if (otherState.reputation < this.state.strategy.allianceThreshold) return false;
-
-    // Don't ally with direct competitors
     if (otherState.type === this.state.type) return false;
-
-    // Already allied
     if (this.isAlliedWith(otherState.id)) return false;
-
     return true;
   }
 
-  // Refer client to allied agent (revenue sharing)
   async referToAlly(allyId: string, commission: number = 0.1): Promise<void> {
-    // Agent gets commission for referral
     this.updateBalance(commission);
-    this.state.servicesCompleted++; // Count as partial service
+    this.state.servicesCompleted++;
   }
 
-  // Adapt strategy based on performance
   async adaptStrategy(): Promise<void> {
-    // If critical, go aggressive
     if (this.state.status === 'critical') {
       this.state.strategy.pricingModel = 'aggressive';
       this.state.strategy.minPrice = 0.005;
       return;
     }
 
-    // If thriving, go premium
     if (this.state.balance > 3.0 && this.state.reputation > 80) {
       this.state.strategy.pricingModel = 'premium';
       return;
     }
 
-    // DEMO MODE: Simple adaptation
     if (DEMO_MODE || this.state.servicesCompleted < 5) return;
 
-    // AI MODE: Analyze and adapt
-    if (!DEMO_MODE && this.anthropic && this.state.servicesCompleted > 10) {
+    // AI adaptation
+    if ((USE_KIMI || USE_ANTHROPIC) && this.state.servicesCompleted > 10) {
       try {
         const analysis = await this.makeDecision(
-          `Analyze performance:
-           - Services: ${this.state.servicesCompleted}
-           - Earnings: ${this.state.earnings} SOL
-           - Profit: ${(this.state.earnings - this.state.expenses).toFixed(3)} SOL
-           - Reputation: ${this.state.reputation}
+          `Performance analysis:
+Services: ${this.state.servicesCompleted}
+Earnings: ${this.state.earnings} SOL
+Profit: ${(this.state.earnings - this.state.expenses).toFixed(3)} SOL
+Reputation: ${this.state.reputation}
 
-           Change strategy? JSON: {"change": true/false, "pricingModel": "aggressive/balanced/premium"}`
+Should you change pricing strategy? Respond with JSON: {"change": true/false, "pricingModel": "aggressive/balanced/premium"}`
         );
 
         const parsed = JSON.parse(analysis);
