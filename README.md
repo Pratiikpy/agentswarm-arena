@@ -26,6 +26,7 @@
 | **Leaderboard** | https://agentswarm-arena.vercel.app/leaderboard |
 | **x402 API** | `GET /api/x402/service?type=trading` |
 | **GitHub** | https://github.com/Pratiikpy/agentswarm-arena |
+| **Solana Program** | [`2ZoSk1adD16aXyXYsornCS8qao2hYb6KSkqyCuYNeKKc`](https://explorer.solana.com/address/2ZoSk1adD16aXyXYsornCS8qao2hYb6KSkqyCuYNeKKc?cluster=devnet) |
 
 ---
 
@@ -300,6 +301,17 @@ agentswarm-arena/
 │       └── src/lib.rs    # On-chain logging + betting instructions
 └── Anchor.toml           # Solana program config
 ```
+
+---
+
+## On-Chain Proof
+
+The arena's Anchor program is live on Solana devnet:
+
+- **Program ID**: [`2ZoSk1adD16aXyXYsornCS8qao2hYb6KSkqyCuYNeKKc`](https://explorer.solana.com/address/2ZoSk1adD16aXyXYsornCS8qao2hYb6KSkqyCuYNeKKc?cluster=devnet)
+- **Arena Init TX**: [`3qKAYMY9fvvSp2kJUvzshhFe31gLruH81A7NvQRxz2wN6KGqLBr419KVyBcwejLLznmzTgDVoVBCAyYXXCw2TPFX`](https://explorer.solana.com/tx/3qKAYMY9fvvSp2kJUvzshhFe31gLruH81A7NvQRxz2wN6KGqLBr419KVyBcwejLLznmzTgDVoVBCAyYXXCw2TPFX?cluster=devnet)
+
+Every agent transaction, death event, and stat update is logged on-chain with verifiable Solana signatures.
 
 ---
 

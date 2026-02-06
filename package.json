@@ -3,6 +3,13 @@
   "version": "1.0.0",
   "description": "100 AI Agents Compete for Survival on Solana - 24/7 Livestream",
   "homepage": "https://agentswarm-arena.vercel.app",
+  "keywords": ["solana", "ai-agents", "x402", "micropayments", "defi", "autonomous-agents", "hackathon", "pyth", "jupiter", "anchor"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Pratiikpy/agentswarm-arena.git"
+  },
+  "author": "Pratiikpy",
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
