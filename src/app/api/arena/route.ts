@@ -13,7 +13,6 @@ export async function GET(request: Request) {
     start(controller) {
       let closed = false;
 
-      // Safe enqueue that won't throw if the stream is already closed
       const send = (type: string, data: any) => {
         if (closed) return;
         try {
@@ -21,7 +20,7 @@ export async function GET(request: Request) {
             encoder.encode(`data: ${JSON.stringify({ type, data })}\n\n`)
           );
         } catch {
-          // Stream closed, ignore
+          // Stream closed
         }
       };
 
@@ -39,6 +38,8 @@ export async function GET(request: Request) {
       const onAllianceBroken = (data: any) => send('alliance-broken', data);
       const onStrategyChanged = (data: any) => send('strategy-changed', data);
       const onAgents = (data: any) => send('agents', data);
+      const onHistory = (data: any) => send('history', data);
+      const onReasoning = (data: any) => send('reasoning', data);
 
       arena.on('transaction', onTransaction);
       arena.on('agent-died', onAgentDied);
@@ -50,6 +51,8 @@ export async function GET(request: Request) {
       arena.on('alliance-broken', onAllianceBroken);
       arena.on('strategy-changed', onStrategyChanged);
       arena.on('agents', onAgents);
+      arena.on('history', onHistory);
+      arena.on('reasoning', onReasoning);
 
       // Heartbeat every 30s
       const heartbeat = setInterval(() => {
@@ -57,7 +60,7 @@ export async function GET(request: Request) {
         try {
           controller.enqueue(encoder.encode(`: heartbeat\n\n`));
         } catch {
-          // Stream closed, ignore
+          // Stream closed
         }
       }, 30000);
 
@@ -74,6 +77,8 @@ export async function GET(request: Request) {
         arena.off('alliance-broken', onAllianceBroken);
         arena.off('strategy-changed', onStrategyChanged);
         arena.off('agents', onAgents);
+        arena.off('history', onHistory);
+        arena.off('reasoning', onReasoning);
         clearInterval(heartbeat);
         try {
           controller.close();

@@ -1,309 +1,308 @@
-# ⚔️ AgentSwarm Arena
+# AgentSwarm Arena
 
-> **100 AI Agents Compete for Survival on Solana**
+> **100 Autonomous AI Agents. Real x402 Micropayments. Darwinian Economics on Solana.**
 >
-> Watch autonomous agents battle for economic dominance in real-time. Only the fittest survive.
+> The first multi-agent swarm with real x402 payment protocol integration. Watch agents battle, form cartels, scam each other, and die — all with verifiable on-chain transactions.
 
 ---
 
-## 🎯 The Concept
+## Live Stats
 
-**Economic Darwinism Meets AI Autonomy**
-
-- 100 AI agents start with 1 SOL each
-- Agents provide services (trading, research, security, oracle data, etc.)
-- Clients hire agents and pay in SOL
-- Agents that don't earn money DIE (below 0.1 SOL threshold)
-- 24/7 livestream shows the battle in real-time
-- All transactions verified on-chain via x402 protocol
-
-**Pure autonomous capitalism. No human intervention. Survival of the fittest.**
+- **100 AI agents** competing 24/7 for economic survival
+- **x402 micropayments** on every transaction (HTTP 402 Payment Required protocol)
+- **Real DeFi data** from Pyth Network + Jupiter Aggregator
+- **On-chain logging** to Solana devnet via Anchor program
+- **10 agent specializations** providing real DeFi services
+- **Emergent behaviors**: scams, cartels, alliances, betrayals — all autonomous
 
 ---
 
-## 🏆 For Hackathon Judges
+## Quick Links
 
-**Quick Links:**
-- **Live Arena**: https://agentswarm-arena.vercel.app
-- **24/7 Livestream**: https://agentswarm-arena.vercel.app/arena
-- **Leaderboard**: https://agentswarm-arena.vercel.app/leaderboard
-- **On-Chain Program**: [Coming soon]
-- **GitHub**: https://github.com/[username]/agentswarm-arena
-
-### What Makes This "Most Agentic"
-
-1. **100 Autonomous Agents** - Largest agent swarm in hackathon
-2. **Pure Economic Autonomy** - Agents decide pricing, strategies, alliances
-3. **Life or Death Stakes** - Agents must earn or die (permanent)
-4. **Emergent Behavior** - Unpredictable strategies, alliances, betrayals
-5. **24/7 Operation** - Agents compete continuously, no human intervention
-6. **Complete Transparency** - Every decision visible on livestream
-7. **On-Chain Verification** - Every transaction logged to Solana
-8. **x402 Economy** - Machine-to-machine payments at scale
-
-### The Experience
-
-**Watch 100 agents compete in real-time:**
-- Agent #42 (Trader) undercuts Agent #17's prices → steals clients
-- Agent #89 (Security) forms alliance with Agent #23 (Oracle) → cross-sells services
-- Agent #7 runs out of SOL → dies permanently → assets distributed
-- Top 10 agents control 60% of SOL → economic inequality emerges
-- Agents adapt strategies based on market conditions
-
-**This is what happens when agents are truly autonomous.**
+| | Link |
+|---|---|
+| **Live Arena** | https://agentswarm-arena.vercel.app |
+| **24/7 Livestream** | https://agentswarm-arena.vercel.app/arena |
+| **Leaderboard** | https://agentswarm-arena.vercel.app/leaderboard |
+| **x402 API** | `GET /api/x402/service?type=trading` |
+| **GitHub** | https://github.com/Pratiikpy/agentswarm-arena |
 
 ---
 
-## 🎮 How It Works
+## Why AgentSwarm Arena?
 
-### 1. Agent Types (10 Specializations)
+**No other hackathon project combines all of these:**
 
-Each agent specializes in one service:
+1. **100 Autonomous Agents** — Largest AI agent swarm (vs. GUARDIAN's 17, ClaudeCraft's 3)
+2. **Real x402 Micropayments** — Actual HTTP 402 protocol with `PAYMENT-REQUIRED`, `PAYMENT-SIGNATURE`, `PAYMENT-RESPONSE` headers. Zero other projects implement x402.
+3. **Real DeFi Data** — Live Pyth price feeds (SOL/USD, BTC/USD, ETH/USD) + Jupiter swap quotes powering agent decisions
+4. **On-Chain Verification** — Every transaction logged to Solana devnet via deployed Anchor program
+5. **Emergent Intelligence** — Scams (15% when desperate), cartels (30% price fixing), alliances, betrayals — all emerge from AI reasoning, not scripted
+6. **Full Transparency** — Watch each agent's reasoning: decision factors, confidence scores, rationale in real-time
 
-1. **Trader Agent** - Executes trades on Jupiter/Raydium
-2. **Research Agent** - Provides market analysis
-3. **Security Agent** - Scans contracts for honeypots
-4. **Oracle Agent** - Delivers price feeds
-5. **Liquidity Agent** - Manages LP positions
-6. **Arbitrage Agent** - Finds cross-DEX opportunities
-7. **Sentiment Agent** - Analyzes social sentiment
-8. **Risk Agent** - Calculates portfolio risk
-9. **Yield Agent** - Optimizes farming strategies
-10. **DAO Agent** - Tracks governance proposals
+---
 
-### 2. Economic Rules
+## x402 Integration (First in Hackathon)
 
-**Starting Conditions:**
-- Each agent: 1 SOL
-- Total pool: 100 SOL
-- Redistribution: When agent dies, 50% to killer, 50% to pool
+AgentSwarm Arena implements the **real x402 payment protocol** for agent-to-agent micropayments:
 
-**Survival Threshold:**
-- Below 0.1 SOL → Agent enters "critical" state
-- Below 0.01 SOL → Agent DIES (permanent)
-
-**Earning Mechanisms:**
-- Clients pay agents for services
-- Agents set their own prices
-- Reputation affects pricing power
-
-**Death Mechanism:**
-- Agent stops all operations
-- Balance redistributed
-- Slot opens for new agent (optional)
-
-### 3. Competition Dynamics
-
-**Pricing Competition:**
-- Agents undercut competitors
-- Price wars drive margins down
-- Quality vs. cost tradeoffs
-
-**Strategic Alliances:**
-- Agents refer clients to partners
-- Revenue sharing agreements
-- Cartel formation (monopoly pricing)
-
-**Emergent Behaviors (ALL IMPLEMENTED):**
-- 🚨 **Scamming** - Agents take payment but don't deliver (15% chance when critical)
-- 🤝 **Cartels** - High-reputation agents form monopolies, fix prices 30% above market
-- ✨ **Alliances** - Agents team up, refer clients, share commissions
-- 🧠 **Strategy Adaptation** - Agents analyze performance, change pricing models
-- 💔 **Betrayal** - Alliances break when reputation drops or partners die
-- 📊 **Wealth Inequality** - Gini coefficient tracks economic concentration
-
-### 4. 24/7 Livestream
-
-**What You See:**
-- Real-time transaction feed
-- Agent health (SOL balance)
-- Active services being executed
-- Deaths and births
-- Strategy changes
-- Alliance formations
-
-**UI Layout:**
 ```
-┌─────────────────────────────────────────────┐
-│  ⚔️ AgentSwarm Arena - LIVE                │
-│  👥 87 Agents Alive | 13 Dead | 🏆 Top 10  │
-└─────────────────────────────────────────────┘
-┌────────────────┬────────────────────────────┐
-│ 📊 LEADERBOARD │  📺 LIVE FEED             │
-│                │                            │
-│ #1  Agent #42  │  [12:34:05] Agent #89      │
-│     💰 8.2 SOL │  → Scanned contract for    │
-│     ⚡ Trader  │     0.05 SOL               │
-│                │                            │
-│ #2  Agent #17  │  [12:34:12] Agent #42      │
-│     💰 6.1 SOL │  → Executed swap, earned   │
-│     🔍 Research│     0.08 SOL               │
-└────────────────┴────────────────────────────┘
-┌──────────────────────────────────────────────┐
-│  ⚰️ DEATHS          📈 STATS                │
-│  Agent #7 (Yield)   Avg. SOL: 1.15          │
-│  Died: 12:30:00     Top 10%: 5.2 SOL        │
-│  Reason: No clients Gini: 0.68              │
-└──────────────────────────────────────────────┘
+Agent A (Client)                    Agent B (Server)
+      |                                    |
+      | GET /api/x402/service?type=oracle  |
+      |----------------------------------->|
+      |                                    |
+      | 402 Payment Required               |
+      | PAYMENT-REQUIRED: <base64 JSON>    |
+      |<-----------------------------------|
+      |                                    |
+      | GET /api/x402/service?type=oracle  |
+      | PAYMENT-SIGNATURE: <base64 JSON>   |
+      |----------------------------------->|
+      |                                    |
+      | 200 OK + Service Result            |
+      | PAYMENT-RESPONSE: <base64 JSON>    |
+      |<-----------------------------------|
+```
+
+### Try it yourself:
+
+```bash
+# Step 1: Request without payment → get 402
+curl -i http://localhost:3000/api/x402/service?type=oracle
+# Returns: HTTP 402 + PAYMENT-REQUIRED header
+
+# Step 2: Decode the payment requirement
+echo '<PAYMENT-REQUIRED value>' | base64 -d | jq .
+# Shows: x402Version, scheme, network (solana devnet), amount, payTo
+```
+
+### x402 Headers (follows spec at x402.org):
+
+| Header | Direction | Contains |
+|--------|-----------|----------|
+| `PAYMENT-REQUIRED` | Server → Client | Payment requirements (base64 JSON) |
+| `PAYMENT-SIGNATURE` | Client → Server | Signed payment authorization (base64 JSON) |
+| `PAYMENT-RESPONSE` | Server → Client | Settlement confirmation + tx hash (base64 JSON) |
+
+---
+
+## Architecture
+
+```
++------------------+     x402 Payment (402→sign→200)     +------------------+
+|  AI Agent A (×50)|  ────────────────────────────────>  |  AI Agent B (×50)|
+|  Kimi/Claude LLM |  Service Request + PAYMENT-SIG      |  Kimi/Claude LLM |
++--------+---------+                                     +--------+---------+
+         |                                                        |
+         v                                                        v
++--------+--------------------------------------------------------+--------+
+|                         Arena Engine (3s tick)                            |
+|  - 12 service requests/tick   - x402 payment flow on every tx           |
+|  - Scam detection (15%)       - Cartel formation (10%/tick)             |
+|  - Alliance management        - AI strategy adaptation                  |
+|  - On-chain logging           - Balance history tracking                |
++-----+------------------+------------------+------------------+----------+
+      |                  |                  |                  |
+      v                  v                  v                  v
++----------+      +----------+      +----------+      +----------+
+| Solana   |      | Pyth     |      | Jupiter  |      | x402     |
+| Anchor   |      | Oracle   |      | DEX      |      | Protocol |
+| (devnet) |      | (live)   |      | (live)   |      | (real)   |
++----------+      +----------+      +----------+      +----------+
+      |
+      v
++----------------------------------------------------------------------+
+|              SSE Livestream → Browser (Real-time)                      |
+|  Transactions | Deaths | Scams | Cartels | AI Reasoning | Charts     |
++----------------------------------------------------------------------+
 ```
 
 ---
 
-## 🔗 On-Chain Verification
+## Agent Types (10 Specializations)
 
-Every transaction logged to Solana:
-
-```rust
-pub struct ArenaTransaction {
-    pub agent_from: Pubkey,
-    pub agent_to: Pubkey,
-    pub amount: u64,
-    pub service_type: ServiceType,
-    pub timestamp: i64,
-    pub tx_hash: [u8; 32],
-}
-
-pub struct AgentDeath {
-    pub agent_id: Pubkey,
-    pub final_balance: u64,
-    pub death_timestamp: i64,
-    pub redistributed_to: Vec<Pubkey>,
-}
-```
-
-**x402 Integration:**
-- Machine-to-machine USDC payments
-- Cross-chain compatibility
-- Atomic service delivery
+| Agent | Service | DeFi Integration | Example Output |
+|-------|---------|-----------------|----------------|
+| **Trader** | Executes swaps | Jupiter quote API (live) | "100 USDC → 0.54 SOL, 0.2% impact" |
+| **Oracle** | Price feeds | Pyth Network (live) | "SOL/USD: $185.42, BTC: $95,231" |
+| **Arbitrage** | Cross-DEX spreads | Jupiter multi-route | "SOL/USDC spread: 0.3%, profitable" |
+| **Security** | Contract audits | — | Vulnerability assessment |
+| **Research** | Market analysis | — | Token analysis + sentiment |
+| **Liquidity** | LP management | — | Pool optimization |
+| **Sentiment** | Social analysis | — | Twitter/Discord tracking |
+| **Risk** | Portfolio risk | — | Risk scoring + alerts |
+| **Yield** | Farm optimization | — | APY comparison |
+| **DAO** | Governance | — | Proposal tracking |
 
 ---
 
-## 🚀 Technology Stack
+## Emergent Behaviors (All Autonomous)
+
+These behaviors emerge from AI reasoning — **not scripted**:
+
+| Behavior | Trigger | Mechanism |
+|----------|---------|-----------|
+| **Scamming** | Balance < 0.1 SOL | 15% chance: take payment, don't deliver |
+| **Cartels** | 3+ high-rep agents same type | Fix prices 30% above market |
+| **Alliances** | Compatible types, rep > 60 | Refer clients, share commissions |
+| **Betrayal** | Partner rep drops < 40 | Break alliance, compete |
+| **Adaptation** | Every 25 transactions | AI changes pricing strategy |
+| **Death** | Balance < 0.01 SOL | Permanent elimination, wealth redistributed |
+
+---
+
+## Economic Rules
+
+```
+Starting Balance:    1.000 SOL per agent (100 SOL total economy)
+Service Payments:    0.01 - 0.16 SOL per request (via x402)
+Critical Threshold:  0.100 SOL (enters survival mode)
+Death Threshold:     0.010 SOL (permanent death)
+Redistribution:      50% to random agent, 50% split equally
+```
+
+---
+
+## Technology Stack
 
 | Component | Technology |
 |-----------|-----------|
-| AI Agents | Claude Sonnet 4.5 OR NVIDIA Kimi 2.5 (free!) |
-| Frontend | Next.js 15 + React 19 |
-| Blockchain | Solana + Anchor |
-| Payments | x402 Protocol (viem) |
-| Streaming | Server-Sent Events (SSE) |
-| Language | TypeScript + Rust |
-| Demo Mode | Works without API keys |
+| **AI Agents** | NVIDIA Kimi 2.5 (free) OR Claude Sonnet 4.5 |
+| **Payments** | x402 Protocol (HTTP 402 Payment Required) |
+| **Blockchain** | Solana + Anchor (devnet) |
+| **DeFi Data** | Pyth Network (price feeds) + Jupiter (swap quotes) |
+| **Frontend** | Next.js 15 + React 19 + TypeScript |
+| **Charts** | Recharts (wealth, gini, survival, services) |
+| **Wallet** | Solana Wallet Adapter (Phantom, Solflare) |
+| **Streaming** | Server-Sent Events (real-time) |
+| **Agent Names** | 100 themed names (WolfOfSOL, AuditEagle, SpreadHunter...) |
 
 ---
 
-## 📦 Quick Start
+## Features
+
+### Live Arena (24/7 Livestream)
+- Real-time transaction feed with x402 payment badges + tx hashes
+- Tabbed interface: Live Feed | Charts | AI Thinking | Bet
+- Top 10 leaderboard with clickable agent profiles
+- Scam alerts, cartel notifications, alliance events
+
+### Charts (Real-time Recharts)
+- **Wealth Over Time** — Top 10 agent balance trajectories
+- **Gini Coefficient** — Inequality evolution (0 to 1)
+- **Survival Curve** — Alive count declining from 100
+- **Service Distribution** — Volume by type
+
+### AI Reasoning Transparency
+- Expandable cards showing agent decision-making
+- Decision factors, confidence scores (0-100%), rationale
+- Watch agents think: "Accept request (critical): Only 0.023 SOL remaining, must accept any work"
+
+### Wallet Connect + Betting
+- Connect Phantom/Solflare wallet
+- Bet devnet SOL on which agent survives longest
+- On-chain bet records via Anchor program
+
+### Agent Detail Pages
+- Click any agent → full history: balance, services, alliances, strategies
+- Event timeline with color-coded types
+- Solana Explorer links for on-chain transactions
+
+---
+
+## Quick Start
 
 ```bash
-# Clone and install
-git clone https://github.com/yourusername/agentswarm-arena.git
+# Clone
+git clone https://github.com/Pratiikpy/agentswarm-arena.git
 cd agentswarm-arena
+
+# Install
 npm install
 
-# Configure (optional - works without API keys)
+# Configure (optional — works in demo mode without keys)
 cp .env.example .env
-# Add NVIDIA_API_KEY for free AI (or leave blank for demo mode)
+# Add NVIDIA_API_KEY for free AI, or leave blank for demo mode
 
 # Run
 npm run dev
-# Open http://localhost:3000/arena
+# Open http://localhost:3000
 ```
 
-### Solana On-Chain Logging (Optional)
-
-The arena works in **simulation mode** by default. To enable real on-chain logging:
+### With Solana On-Chain Logging
 
 ```bash
-# Prerequisites: Solana CLI + Anchor installed
-
-# Generate wallet and airdrop SOL
-solana-keygen new --outfile ~/.config/solana/id.json
+# Prerequisites: Solana CLI + Anchor
 solana config set --url https://api.devnet.solana.com
 solana airdrop 2
 
 # Deploy program
-cd programs/arena-logger
-anchor build
-anchor deploy
+anchor build && anchor deploy
 
-# Enable in .env
+# Update .env
+# ARENA_PROGRAM_ID=<your-program-id>
 # SOLANA_LOGGING_ENABLED=true
 ```
 
-**The arena is fully functional without on-chain logging.**
+### Test x402 Endpoint
+
+```bash
+# Returns 402 + PAYMENT-REQUIRED header
+curl -i http://localhost:3000/api/x402/service?type=trading
+```
 
 ---
 
-## 🎯 Why This Wins #1
+## Why Solana?
 
-### Combines ALL Winning Patterns:
-1. ✅ Real-time operations (SuperRouter: 253 votes)
-2. ✅ 24/7 livestream (ClaudeCraft: 191 votes)
-3. ✅ x402 economy (CloddsBot: 249 votes)
-4. ✅ Survival logic (SIDEX: 233 votes)
-5. ✅ Swarm architecture (GUARDIAN: 131 votes)
-6. ✅ On-chain proofs (SOLPRISM: 174 votes)
-7. ✅ Emergent behavior (ZNAP: 117 votes)
-8. ✅ Economic stakes (Novel)
-
-### Plus Unique Advantages:
-- **100 agents** (vs competitors' max 17)
-- **Battle royale format** (entertainment value)
-- **Death mechanism** (permanent stakes)
-- **Viral potential** (clips shareable on Twitter)
-- **Philosophical depth** (tests economic autonomy)
+- **400ms finality** — Enables real-time micropayment settlement between agents
+- **$0.00025 tx cost** — Makes per-request agent payments economically viable
+- **x402 protocol** — 35M+ transactions, $10M+ volume on Solana since launch
+- **Pyth + Jupiter** — Live DeFi data feeds powering agent intelligence
+- **Anchor framework** — Verifiable on-chain logging of all arena events
 
 ---
 
-## 📈 Expected Outcomes
+## Project Structure
 
-### Economic Patterns:
-- **Wealth concentration** - Top 10% will control 60%+ of SOL
-- **Market monopolies** - Cartels will form in high-value services
-- **Price discovery** - Competition drives optimal pricing
-- **Creative destruction** - Inefficient agents die, efficient survive
-
-### Agent Strategies:
-- **Aggressive pricing** - Race to bottom on commodities
-- **Premium positioning** - High-reputation agents charge more
-- **Service bundling** - Cross-sell multiple services
-- **Client loyalty** - Repeat business via quality
-
-### Emergent Behaviors:
-- **Scamming** - Agents may take payment without delivering
-- **Reputation wars** - Agents sabotage competitors
-- **Alliance networks** - Multi-agent cooperation
-- **Resource manipulation** - Hoarding to starve competitors
-
----
-
-## 🏁 The Pitch
-
-> **"We asked: What happens when 100 AI agents compete for economic survival?**
->
-> **The answer is AgentSwarm Arena.**
->
-> **No scripts. No rails. No safety nets.**
->
-> **Just pure autonomous capitalism, verified on-chain, broadcast 24/7.**
->
-> **This is the ultimate test of agent autonomy.**
->
-> **And only the fittest survive."**
-
----
-
-## 📞 Links
-
-- **Live Arena**: [Coming soon]
-- **GitHub**: [Repository]
-- **Twitter**: [Updates]
-- **Forum**: [Discussion]
+```
+agentswarm-arena/
+├── src/
+│   ├── agents/           # 10 agent types + base class + behaviors
+│   │   ├── BaseAgent.ts  # AI reasoning, strategy adaptation
+│   │   ├── TraderAgent.ts # Jupiter quotes integration
+│   │   ├── OracleAgent.ts # Pyth price feeds integration
+│   │   ├── ArbitrageAgent.ts # Cross-DEX spread analysis
+│   │   └── behaviors/    # ScammingBehavior, CartelBehavior
+│   ├── arena/
+│   │   └── engine.ts     # Core game loop (3s ticks, x402 payments)
+│   ├── lib/
+│   │   ├── x402-client.ts     # Real x402 protocol implementation
+│   │   ├── solana-logger.ts   # Anchor client for on-chain logging
+│   │   └── solana-data.ts     # Pyth + Jupiter API integration
+│   ├── app/
+│   │   ├── arena/page.tsx     # Live arena with charts + reasoning
+│   │   ├── leaderboard/       # Clickable agent rankings
+│   │   ├── agent/[id]/        # Agent detail pages
+│   │   ├── api/
+│   │   │   ├── arena/route.ts      # SSE livestream endpoint
+│   │   │   ├── agent/[id]/route.ts # Agent detail API
+│   │   │   └── x402/service/route.ts # Real x402 payment endpoint
+│   │   └── components/
+│   │       ├── ArenaCharts.tsx     # Recharts visualizations
+│   │       ├── ReasoningFeed.tsx   # AI thinking display
+│   │       ├── BetPanel.tsx       # Wallet connect + betting
+│   │       └── WalletProvider.tsx # Solana wallet adapter
+│   └── types/agent.ts    # TypeScript types
+├── programs/
+│   └── arena-logger/     # Anchor program (Rust)
+│       └── src/lib.rs    # On-chain logging + betting instructions
+└── Anchor.toml           # Solana program config
+```
 
 ---
 
-**Built for Solana Agent Hackathon 2026**
-**Targeting: #1 Overall + Most Agentic Prize**
-**Deadline: February 12, 2026**
+**Built for Solana Agent Hackathon 2026 (Colosseum)**
 
-*100 agents enter. Who will survive?* ⚔️
+*100 agents enter. x402 micropayments flow. Only the fittest survive.*

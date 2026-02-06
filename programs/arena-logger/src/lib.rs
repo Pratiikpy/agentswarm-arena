@@ -1,9 +1,9 @@
-// AgentSwarm Arena - On-Chain Transaction Logger
+// AgentSwarm Arena - On-Chain Transaction Logger + Betting
 // Logs all agent transactions to Solana for permanent verification
 
 use anchor_lang::prelude::*;
 
-declare_id!("ArenaLog11111111111111111111111111111111111");
+declare_id!("2ZoSk1adD16aXyXYsornCS8qao2hYb6KSkqyCuYNeKKc");
 
 #[program]
 pub mod arena_logger {
@@ -18,6 +18,8 @@ pub mod arena_logger {
         arena.total_volume = 0;
         arena.started_at = Clock::get()?.unix_timestamp;
         arena.authority = ctx.accounts.authority.key();
+        arena.total_bets = 0;
+        arena.total_bet_volume = 0;
 
         msg!("Arena initialized: {}", arena.arena_id);
         Ok(())
@@ -86,7 +88,7 @@ pub mod arena_logger {
         alive_agents: u32,
         dead_agents: u32,
         avg_balance: u64,
-        gini_coefficient: u16, // Stored as u16 (multiply by 100, e.g., 0.75 = 75)
+        gini_coefficient: u16,
     ) -> Result<()> {
         let arena = &mut ctx.accounts.arena;
 
@@ -101,6 +103,49 @@ pub mod arena_logger {
             alive_agents,
             dead_agents,
             avg_balance
+        );
+
+        Ok(())
+    }
+
+    /// Place a bet on an agent (user wallet interaction)
+    pub fn place_bet(
+        ctx: Context<PlaceBet>,
+        agent_id: String,
+        amount: u64,
+    ) -> Result<()> {
+        let bet = &mut ctx.accounts.bet;
+        let arena = &mut ctx.accounts.arena;
+
+        // Transfer SOL from bettor to arena
+        let ix = anchor_lang::solana_program::system_instruction::transfer(
+            &ctx.accounts.bettor.key(),
+            &arena.key(),
+            amount,
+        );
+        anchor_lang::solana_program::program::invoke(
+            &ix,
+            &[
+                ctx.accounts.bettor.to_account_info(),
+                arena.to_account_info(),
+            ],
+        )?;
+
+        bet.bettor = ctx.accounts.bettor.key();
+        bet.agent_id = agent_id;
+        bet.amount = amount;
+        bet.timestamp = Clock::get()?.unix_timestamp;
+        bet.arena = arena.key();
+        bet.claimed = false;
+
+        arena.total_bets += 1;
+        arena.total_bet_volume += amount;
+
+        msg!(
+            "Bet placed: {} on agent {} for {} lamports",
+            bet.bettor,
+            bet.agent_id,
+            amount
         );
 
         Ok(())
@@ -177,6 +222,27 @@ pub struct UpdateStats<'info> {
     pub authority: Signer<'info>,
 }
 
+#[derive(Accounts)]
+#[instruction(agent_id: String)]
+pub struct PlaceBet<'info> {
+    #[account(
+        init,
+        payer = bettor,
+        space = 8 + Bet::INIT_SPACE,
+        seeds = [b"bet", bettor.key().as_ref(), agent_id.as_bytes()],
+        bump
+    )]
+    pub bet: Account<'info, Bet>,
+
+    #[account(mut)]
+    pub arena: Account<'info, Arena>,
+
+    #[account(mut)]
+    pub bettor: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
 // Account Data Structures
 
 #[account]
@@ -193,6 +259,8 @@ pub struct Arena {
     pub avg_balance: u64,
     pub gini_coefficient: u16,
     pub started_at: i64,
+    pub total_bets: u64,
+    pub total_bet_volume: u64,
 }
 
 #[account]
@@ -222,4 +290,16 @@ pub struct AgentDeath {
     pub services_completed: u32,
     pub timestamp: i64,
     pub arena: Pubkey,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct Bet {
+    pub bettor: Pubkey,
+    #[max_len(50)]
+    pub agent_id: String,
+    pub amount: u64,
+    pub timestamp: i64,
+    pub arena: Pubkey,
+    pub claimed: bool,
 }

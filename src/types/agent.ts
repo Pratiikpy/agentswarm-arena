@@ -28,6 +28,7 @@ export interface AgentState {
   createdAt: number;
   diedAt?: number;
   strategy: AgentStrategy;
+  solanaTxSignature?: string; // Latest on-chain tx signature
 }
 
 export interface AgentStrategy {
@@ -61,6 +62,9 @@ export interface Transaction {
   timestamp: number;
   txHash?: string;
   onChain: boolean;
+  solanaTxSignature?: string;
+  x402PaymentId?: string;
+  x402TxHash?: string;
 }
 
 export interface ArenaStats {
@@ -72,4 +76,33 @@ export interface ArenaStats {
   avgBalance: number;
   topAgents: AgentState[];
   giniCoefficient: number; // Wealth inequality measure
+}
+
+// History types for charts
+export interface BalanceSnapshot {
+  timestamp: number;
+  balances: Record<string, number>; // agentId -> balance
+  giniCoefficient: number;
+  aliveCount: number;
+  deadCount: number;
+  serviceVolume: Record<ServiceType, number>;
+}
+
+// Agent event history for detail page
+export interface AgentEvent {
+  type: 'service' | 'payment' | 'scam' | 'alliance' | 'strategy' | 'death' | 'reasoning';
+  timestamp: number;
+  description: string;
+  data?: Record<string, unknown>;
+}
+
+// Reasoning event for transparency
+export interface ReasoningEvent {
+  agentId: string;
+  agentName: string;
+  decision: string;
+  factors: string[];
+  confidence: number; // 0-1
+  rationale: string;
+  timestamp: number;
 }

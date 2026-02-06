@@ -1,6 +1,6 @@
 // Agent Factory - Creates agents of all types
 
-import { BaseAgent } from './BaseAgent';
+import { BaseAgent, setReasoningCallback } from './BaseAgent';
 import { TraderAgent } from './TraderAgent';
 import { SecurityAgent } from './SecurityAgent';
 import { ResearchAgent } from './ResearchAgent';
@@ -42,6 +42,7 @@ export function createAgent(id: string, type: ServiceType, initialBalance: numbe
 
 export {
   BaseAgent,
+  setReasoningCallback,
   TraderAgent,
   SecurityAgent,
   ResearchAgent,

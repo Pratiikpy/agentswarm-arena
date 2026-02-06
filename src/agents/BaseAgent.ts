@@ -1,8 +1,9 @@
 // Base Agent Class - Supports Anthropic OR NVIDIA Kimi 2.5
 
-import { AgentState, AgentStatus, ServiceType, ServiceRequest, AgentStrategy } from '../types/agent';
+import { AgentState, AgentStatus, ServiceType, ServiceRequest, AgentStrategy, AgentEvent, ReasoningEvent } from '../types/agent';
 import Anthropic from '@anthropic-ai/sdk';
 import { KimiClient } from '../lib/kimi-client';
+import { getAgentName } from './agent-names';
 
 const SURVIVAL_THRESHOLD = 0.1; // SOL
 const CRITICAL_THRESHOLD = 0.01; // SOL
@@ -14,12 +15,20 @@ const USE_KIMI = !!NVIDIA_API_KEY && NVIDIA_API_KEY !== 'nvapi-YOUR-KEY-HERE';
 const USE_ANTHROPIC = !USE_KIMI && !!ANTHROPIC_API_KEY && ANTHROPIC_API_KEY !== 'sk-ant-api-YOUR-KEY-HERE';
 const DEMO_MODE = !USE_KIMI && !USE_ANTHROPIC;
 
+// Callback for reasoning events (set by engine)
+let reasoningCallback: ((event: ReasoningEvent) => void) | null = null;
+
+export function setReasoningCallback(cb: (event: ReasoningEvent) => void): void {
+  reasoningCallback = cb;
+}
+
 export class BaseAgent {
   protected state: AgentState;
   protected anthropic: Anthropic | null = null;
   protected kimi: KimiClient | null = null;
   protected conversationHistory: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
   protected alliances: Set<string> = new Set();
+  protected eventHistory: AgentEvent[] = [];
 
   constructor(
     id: string,
@@ -30,7 +39,7 @@ export class BaseAgent {
     this.state = {
       id,
       type,
-      name: `${type.charAt(0).toUpperCase() + type.slice(1)}-${id.slice(-4)}`,
+      name: getAgentName(type, id),
       balance: initialBalance,
       status: 'alive',
       reputation: 50,
@@ -50,16 +59,39 @@ export class BaseAgent {
       },
     };
 
-    // Initialize AI provider
+    // Initialize AI provider (only log once per type to reduce noise)
     if (USE_KIMI) {
       this.kimi = new KimiClient(NVIDIA_API_KEY!);
-      console.log(`✨ ${this.state.name} - Using NVIDIA Kimi 2.5 (FREE!)`);
     } else if (USE_ANTHROPIC) {
       this.anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY! });
-      console.log(`🤖 ${this.state.name} - Using Anthropic Claude`);
-    } else {
-      console.log(`[DEMO] ${this.state.name} - Using simulated decisions`);
     }
+  }
+
+  protected addEvent(event: Omit<AgentEvent, 'timestamp'>): void {
+    this.eventHistory.push({ ...event, timestamp: Date.now() });
+    // Keep last 100 events
+    if (this.eventHistory.length > 100) {
+      this.eventHistory = this.eventHistory.slice(-100);
+    }
+  }
+
+  protected emitReasoning(decision: string, factors: string[], confidence: number, rationale: string): void {
+    if (reasoningCallback) {
+      reasoningCallback({
+        agentId: this.state.id,
+        agentName: this.state.name,
+        decision,
+        factors,
+        confidence,
+        rationale,
+        timestamp: Date.now(),
+      });
+    }
+    this.addEvent({
+      type: 'reasoning',
+      description: `${decision}: ${rationale}`,
+      data: { factors, confidence },
+    });
   }
 
   updateBalance(amount: number): void {
@@ -72,7 +104,6 @@ export class BaseAgent {
   private updateStatus(): void {
     if (this.state.balance <= CRITICAL_THRESHOLD) {
       this.state.status = 'dead';
-      // diedAt is set by the engine in processDeaths() to ensure the death event fires
     } else if (this.state.balance <= SURVIVAL_THRESHOLD) {
       this.state.status = 'critical';
     } else {
@@ -85,12 +116,29 @@ export class BaseAgent {
     if (request.payment < this.state.strategy.minPrice) return false;
 
     if (this.state.status === 'critical') {
+      this.emitReasoning(
+        'Accept request (critical)',
+        ['Balance critically low', `Payment: ${request.payment.toFixed(3)} SOL`, 'Must accept to survive'],
+        0.9,
+        'Accepting any work to stay alive',
+      );
       return request.payment >= this.state.strategy.minPrice;
     }
 
     // DEMO MODE: Simple logic
     if (DEMO_MODE) {
-      return request.payment >= this.state.strategy.basePrice * 0.8;
+      const accept = request.payment >= this.state.strategy.basePrice * 0.8;
+      this.emitReasoning(
+        accept ? 'Accept request' : 'Reject request',
+        [
+          `Payment: ${request.payment.toFixed(3)} SOL`,
+          `Min acceptable: ${(this.state.strategy.basePrice * 0.8).toFixed(3)} SOL`,
+          `Balance: ${this.state.balance.toFixed(3)} SOL`,
+        ],
+        accept ? 0.75 : 0.6,
+        accept ? 'Payment meets threshold' : 'Payment too low for this service',
+      );
+      return accept;
     }
 
     // AI MODE: Use Kimi or Claude
@@ -105,6 +153,12 @@ Should you accept? Respond ONLY with JSON: {"accept": true/false, "reason": "...
       );
 
       const parsed = JSON.parse(decision);
+      this.emitReasoning(
+        parsed.accept ? 'Accept request' : 'Reject request',
+        [`Payment: ${request.payment.toFixed(3)} SOL`, `Reputation: ${this.state.reputation}`],
+        parsed.accept ? 0.8 : 0.65,
+        parsed.reason || 'AI decision',
+      );
       return parsed.accept === true;
     } catch (error) {
       return request.payment >= this.state.strategy.basePrice;
@@ -136,6 +190,11 @@ Should you accept? Respond ONLY with JSON: {"accept": true/false, "reason": "...
       this.state.servicesCompleted++;
       this.updateBalance(request.payment);
       this.updateReputation(1);
+
+      this.addEvent({
+        type: 'service',
+        description: `Completed ${request.serviceType} service for ${request.payment.toFixed(3)} SOL`,
+      });
 
       return `[DEMO] ${this.state.type.toUpperCase()} SERVICE
 
@@ -218,6 +277,10 @@ Survive by earning. Below 0.01 SOL = death.`,
     return { ...this.state, strategy: { ...this.state.strategy } };
   }
 
+  getEventHistory(): AgentEvent[] {
+    return [...this.eventHistory];
+  }
+
   updateReputation(delta: number): void {
     this.state.reputation = Math.max(0, Math.min(100, this.state.reputation + delta));
   }
@@ -232,15 +295,22 @@ Survive by earning. Below 0.01 SOL = death.`,
 
   markDead(): void {
     this.state.diedAt = Date.now();
+    this.addEvent({ type: 'death', description: `Died with ${this.state.balance.toFixed(4)} SOL after ${this.state.servicesCompleted} services` });
+  }
+
+  setSolanaTxSignature(sig: string): void {
+    this.state.solanaTxSignature = sig;
   }
 
   // Alliance system
   formAlliance(otherAgentId: string): void {
     this.alliances.add(otherAgentId);
+    this.addEvent({ type: 'alliance', description: `Formed alliance with ${otherAgentId}` });
   }
 
   breakAlliance(otherAgentId: string): void {
     this.alliances.delete(otherAgentId);
+    this.addEvent({ type: 'alliance', description: `Broke alliance with ${otherAgentId}` });
   }
 
   isAlliedWith(otherAgentId: string): boolean {
@@ -267,13 +337,33 @@ Survive by earning. Below 0.01 SOL = death.`,
 
   async adaptStrategy(): Promise<void> {
     if (this.state.status === 'critical') {
+      const oldModel = this.state.strategy.pricingModel;
       this.state.strategy.pricingModel = 'aggressive';
       this.state.strategy.minPrice = 0.005;
+      if (oldModel !== 'aggressive') {
+        this.emitReasoning(
+          'Switch to aggressive pricing',
+          ['Balance critical', `Only ${this.state.balance.toFixed(3)} SOL remaining`, 'Must undercut to get any work'],
+          0.95,
+          'Survival mode: accepting any work at any price',
+        );
+        this.addEvent({ type: 'strategy', description: `Switched to aggressive pricing (survival mode)` });
+      }
       return;
     }
 
     if (this.state.balance > 3.0 && this.state.reputation > 80) {
+      const oldModel = this.state.strategy.pricingModel;
       this.state.strategy.pricingModel = 'premium';
+      if (oldModel !== 'premium') {
+        this.emitReasoning(
+          'Switch to premium pricing',
+          ['High balance', 'High reputation', 'Can afford to be selective'],
+          0.85,
+          'Strong position allows premium pricing',
+        );
+        this.addEvent({ type: 'strategy', description: `Switched to premium pricing (dominant position)` });
+      }
       return;
     }
 
@@ -295,6 +385,7 @@ Should you change pricing strategy? Respond with JSON: {"change": true/false, "p
         const parsed = JSON.parse(analysis);
         if (parsed.change && parsed.pricingModel) {
           this.state.strategy.pricingModel = parsed.pricingModel;
+          this.addEvent({ type: 'strategy', description: `AI adapted: switched to ${parsed.pricingModel} pricing` });
         }
       } catch {
         // Keep current strategy
