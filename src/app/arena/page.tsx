@@ -1,12 +1,46 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import type { ArenaStats, Transaction, AgentState } from '@/types/agent';
+
+interface ScamEvent {
+  agentId: string;
+  agentName: string;
+  payment: number;
+  timestamp: number;
+}
+
+interface CartelEvent {
+  serviceType: string;
+  members: number;
+  price: number;
+  timestamp: number;
+}
+
+interface AllianceEvent {
+  agent1: string;
+  agent2: string;
+  type: 'formed' | 'broken';
+  reason?: string;
+  timestamp: number;
+}
+
+interface StrategyEvent {
+  agentName: string;
+  from: string;
+  to: string;
+  timestamp: number;
+}
 
 export default function ArenaPage() {
   const [stats, setStats] = useState<ArenaStats | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [deaths, setDeaths] = useState<AgentState[]>([]);
+  const [scams, setScams] = useState<ScamEvent[]>([]);
+  const [cartels, setCartels] = useState<CartelEvent[]>([]);
+  const [alliances, setAlliances] = useState<AllianceEvent[]>([]);
+  const [strategies, setStrategies] = useState<StrategyEvent[]>([]);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
@@ -30,6 +64,36 @@ export default function ArenaPage() {
             break;
           case 'death':
             setDeaths((prev) => [message.data, ...prev].slice(0, 20));
+            break;
+          case 'scam':
+            setScams((prev) => [
+              { ...message.data, timestamp: Date.now() },
+              ...prev
+            ].slice(0, 20));
+            break;
+          case 'cartel':
+            setCartels((prev) => [
+              { ...message.data, timestamp: Date.now() },
+              ...prev
+            ].slice(0, 10));
+            break;
+          case 'alliance-formed':
+            setAlliances((prev) => [
+              { ...message.data, type: 'formed' as const, timestamp: Date.now() },
+              ...prev
+            ].slice(0, 20));
+            break;
+          case 'alliance-broken':
+            setAlliances((prev) => [
+              { ...message.data, type: 'broken' as const, timestamp: Date.now() },
+              ...prev
+            ].slice(0, 20));
+            break;
+          case 'strategy-changed':
+            setStrategies((prev) => [
+              { ...message.data, timestamp: Date.now() },
+              ...prev
+            ].slice(0, 15));
             break;
           case 'service':
             // Could display service completions
@@ -68,7 +132,23 @@ export default function ArenaPage() {
     <div className="min-h-screen p-4">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-4xl font-bold glow-text mb-2">⚔️ AGENTSWARM ARENA - LIVE</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-4xl font-bold glow-text">AGENTSWARM ARENA - LIVE</h1>
+          <div className="flex gap-2">
+            <Link
+              href="/"
+              className="px-3 py-1 terminal-border hover:bg-green-900/20 text-green-400 text-sm font-bold rounded transition-colors"
+            >
+              HOME
+            </Link>
+            <Link
+              href="/leaderboard"
+              className="px-3 py-1 terminal-border hover:bg-green-900/20 text-green-400 text-sm font-bold rounded transition-colors"
+            >
+              LEADERBOARD
+            </Link>
+          </div>
+        </div>
         <div className="flex gap-4 text-sm">
           <span className={`${connected ? 'text-green-400' : 'text-red-400'}`}>
             {connected ? '🟢 LIVE' : '🔴 OFFLINE'}
@@ -189,6 +269,127 @@ export default function ArenaPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Emergent Behaviors */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+        {/* Scams */}
+        <div className="terminal-border p-4">
+          <h2 className="text-xl font-bold mb-4">🚨 SCAMS DETECTED</h2>
+          <div className="space-y-2">
+            {scams.length === 0 && (
+              <div className="text-center text-green-500/50 py-4">
+                No scams detected yet...
+              </div>
+            )}
+            {scams.map((scam, idx) => (
+              <div
+                key={idx}
+                className="p-2 bg-red-900/20 rounded text-sm animate-fadeIn border border-red-500/30"
+              >
+                <div className="font-bold text-red-400">⚠️ {scam.agentName}</div>
+                <div className="text-xs text-green-500/70 mt-1">
+                  Took {scam.payment.toFixed(3)} SOL but delivered nothing!
+                </div>
+                <div className="text-xs text-red-500/70">
+                  {new Date(scam.timestamp).toLocaleTimeString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Cartels */}
+        <div className="terminal-border p-4">
+          <h2 className="text-xl font-bold mb-4">🤝 ACTIVE CARTELS</h2>
+          <div className="space-y-2">
+            {cartels.length === 0 && (
+              <div className="text-center text-green-500/50 py-4">
+                No cartels formed yet...
+              </div>
+            )}
+            {cartels.map((cartel, idx) => (
+              <div
+                key={idx}
+                className="p-2 bg-yellow-900/20 rounded text-sm animate-fadeIn border border-yellow-500/30"
+              >
+                <div className="font-bold text-yellow-400">
+                  🤝 {cartel.serviceType.toUpperCase()} CARTEL
+                </div>
+                <div className="text-xs text-green-500/70 mt-1">
+                  {cartel.members} agents fixing price at {cartel.price.toFixed(3)} SOL
+                </div>
+                <div className="text-xs text-yellow-500/70">
+                  Formed: {new Date(cartel.timestamp).toLocaleTimeString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* More Emergent Behaviors */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+        {/* Alliances */}
+        <div className="terminal-border p-4">
+          <h2 className="text-xl font-bold mb-4">🤝 ALLIANCES</h2>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            {alliances.length === 0 && (
+              <div className="text-center text-green-500/50 py-4">
+                No alliance activity yet...
+              </div>
+            )}
+            {alliances.map((alliance, idx) => (
+              <div
+                key={idx}
+                className={`p-2 rounded text-sm animate-fadeIn ${
+                  alliance.type === 'formed'
+                    ? 'bg-blue-900/20 border border-blue-500/30'
+                    : 'bg-gray-900/20 border border-gray-500/30'
+                }`}
+              >
+                <div className={`font-bold ${alliance.type === 'formed' ? 'text-blue-400' : 'text-gray-400'}`}>
+                  {alliance.type === 'formed' ? '✨ Alliance Formed' : '💔 Alliance Broken'}
+                </div>
+                <div className="text-xs text-green-500/70 mt-1">
+                  {alliance.agent1} ↔ {alliance.agent2}
+                  {alliance.reason && ` (${alliance.reason})`}
+                </div>
+                <div className="text-xs text-green-500/50">
+                  {new Date(alliance.timestamp).toLocaleTimeString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Strategy Changes */}
+        <div className="terminal-border p-4">
+          <h2 className="text-xl font-bold mb-4">🧠 STRATEGY CHANGES</h2>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            {strategies.length === 0 && (
+              <div className="text-center text-green-500/50 py-4">
+                No strategy changes yet...
+              </div>
+            )}
+            {strategies.map((strategy, idx) => (
+              <div
+                key={idx}
+                className="p-2 bg-purple-900/20 rounded text-sm animate-fadeIn border border-purple-500/30"
+              >
+                <div className="font-bold text-purple-400">
+                  🧠 {strategy.agentName}
+                </div>
+                <div className="text-xs text-green-500/70 mt-1">
+                  Changed pricing: {strategy.from} → {strategy.to}
+                </div>
+                <div className="text-xs text-purple-500/70">
+                  {new Date(strategy.timestamp).toLocaleTimeString()}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

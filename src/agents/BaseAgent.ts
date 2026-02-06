@@ -72,7 +72,7 @@ export class BaseAgent {
   private updateStatus(): void {
     if (this.state.balance <= CRITICAL_THRESHOLD) {
       this.state.status = 'dead';
-      this.state.diedAt = Date.now();
+      // diedAt is set by the engine in processDeaths() to ensure the death event fires
     } else if (this.state.balance <= SURVIVAL_THRESHOLD) {
       this.state.status = 'critical';
     } else {
@@ -215,11 +215,23 @@ Survive by earning. Below 0.01 SOL = death.`,
   }
 
   getState(): Readonly<AgentState> {
-    return { ...this.state };
+    return { ...this.state, strategy: { ...this.state.strategy } };
   }
 
   updateReputation(delta: number): void {
     this.state.reputation = Math.max(0, Math.min(100, this.state.reputation + delta));
+  }
+
+  incrementServicesCompleted(): void {
+    this.state.servicesCompleted++;
+  }
+
+  updateStrategy(updates: Partial<AgentStrategy>): void {
+    Object.assign(this.state.strategy, updates);
+  }
+
+  markDead(): void {
+    this.state.diedAt = Date.now();
   }
 
   // Alliance system

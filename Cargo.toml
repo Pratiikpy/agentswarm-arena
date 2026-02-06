@@ -1,0 +1,6 @@
+[workspace]
+members = ["programs/arena-logger"]
+resolver = "2"
+
+[profile.release]
+overflow-checks = true

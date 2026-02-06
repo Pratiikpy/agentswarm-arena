@@ -3,6 +3,8 @@
 import { BaseAgent, createAgent } from '../agents';
 import { ServiceType, ServiceRequest, Transaction, ArenaStats, AgentState } from '../types/agent';
 import { EventEmitter } from 'events';
+import { ScammingBehavior } from '../agents/behaviors/ScammingBehavior';
+import { CartelBehavior } from '../agents/behaviors/CartelBehavior';
 
 const SERVICE_TYPES: ServiceType[] = [
   'trading',
@@ -26,6 +28,8 @@ export class ArenaEngine extends EventEmitter {
 
   constructor() {
     super();
+    // Allow many concurrent SSE connections without warning
+    this.setMaxListeners(50);
   }
 
   // Initialize arena with N agents
@@ -53,7 +57,11 @@ export class ArenaEngine extends EventEmitter {
     console.log('🚀 Arena started! Agents are now competing...');
 
     // Tick every 5 seconds
-    this.tickInterval = setInterval(() => this.tick(), 5000);
+    this.tickInterval = setInterval(() => {
+      this.tick().catch((err) => {
+        console.error('Arena tick error:', err);
+      });
+    }, 5000);
 
     this.emit('started');
   }
@@ -78,10 +86,38 @@ export class ArenaEngine extends EventEmitter {
     // 2. Match requests to agents
     await this.matchRequests();
 
+    // 2b. Clean up completed/failed requests to prevent memory leak
+    this.serviceRequests = this.serviceRequests.filter(
+      (r) => r.status === 'pending' || r.status === 'in_progress'
+    );
+
     // 3. Process deaths
     this.processDeaths();
 
-    // 4. Emit stats update
+    // 4. Maintain cartels (break if members drop)
+    CartelBehavior.maintainCartels(Array.from(this.agents.values()));
+
+    // 5. Try to form new cartels (10% chance per tick)
+    if (Math.random() < 0.1) {
+      this.attemptCartelFormation();
+    }
+
+    // 6. Form/break alliances (20% chance per tick)
+    if (Math.random() < 0.2) {
+      this.manageAlliances();
+    }
+
+    // 7. Agents adapt their strategies (every 5th tick)
+    if (this.transactions.length % 25 === 0) {
+      await this.agentAdaptation();
+    }
+
+    // 8. Cap transaction history to prevent unbounded memory growth
+    if (this.transactions.length > 10000) {
+      this.transactions = this.transactions.slice(-5000);
+    }
+
+    // 9. Emit stats update
     this.emitStats();
   }
 
@@ -129,9 +165,26 @@ export class ArenaEngine extends EventEmitter {
         request.agentId = selectedAgent.getState().id;
         request.status = 'in_progress';
 
-        // Execute service
+        // Execute service (or scam!)
         try {
-          const result = await selectedAgent.executeService(request);
+          let result: string;
+
+          // Check if agent will scam
+          const willScam = ScammingBehavior.shouldScam(selectedAgent);
+
+          if (willScam) {
+            // Agent scams the client!
+            result = await ScammingBehavior.executeScam(selectedAgent, request);
+            this.emit('scam-detected', {
+              agentId: selectedAgent.getState().id,
+              agentName: selectedAgent.getState().name,
+              payment: request.payment,
+            });
+          } else {
+            // Normal service execution
+            result = await selectedAgent.executeService(request);
+          }
+
           request.status = 'completed';
           request.completedAt = Date.now();
 
@@ -167,13 +220,17 @@ export class ArenaEngine extends EventEmitter {
       const state = agent.getState();
 
       if (state.status === 'dead' && !state.diedAt) {
-        // Agent just died
-        deadAgents.push(state);
+        // Mark the time of death on the actual agent state
+        agent.markDead();
+
+        // Get the updated state with diedAt set
+        const updatedState = agent.getState();
+        deadAgents.push(updatedState);
 
         // Redistribute balance
-        this.redistributeBalance(id, state.balance);
+        this.redistributeBalance(id, updatedState.balance);
 
-        this.emit('agent-died', state);
+        this.emit('agent-died', updatedState);
       }
     }
 
@@ -203,10 +260,112 @@ export class ArenaEngine extends EventEmitter {
     this.emit('balance-redistributed', { amount: balance, recipients: aliveAgents.length });
   }
 
-  // Emit current arena stats
+  // Attempt to form cartels for each service type
+  private attemptCartelFormation(): void {
+    const allAgents = Array.from(this.agents.values());
+
+    for (const serviceType of SERVICE_TYPES) {
+      // Check if cartel can be formed
+      if (CartelBehavior.canFormCartel(allAgents, serviceType)) {
+        // Get current market price for this service (average of recent transactions)
+        const recentTxs = this.transactions
+          .filter((t) => t.serviceType === serviceType)
+          .slice(-10);
+
+        const avgPrice =
+          recentTxs.length > 0
+            ? recentTxs.reduce((sum, t) => sum + t.amount, 0) / recentTxs.length
+            : 0.08;
+
+        // Set cartel price 30% above market
+        const cartelPrice = avgPrice * 1.3;
+
+        const members = CartelBehavior.formCartel(allAgents, serviceType, cartelPrice);
+
+        if (members.length > 0) {
+          this.emit('cartel-formed', {
+            serviceType,
+            members: members.length,
+            price: cartelPrice,
+          });
+        }
+      }
+    }
+  }
+
+  // Manage alliance formation and breaking
+  private manageAlliances(): void {
+    const allAgents = Array.from(this.agents.values());
+    const aliveAgents = allAgents.filter((a) => a.getState().status === 'alive');
+
+    if (aliveAgents.length < 2) return;
+
+    // Pick 2 random alive agents
+    const agent1 = aliveAgents[Math.floor(Math.random() * aliveAgents.length)];
+    const agent2 = aliveAgents[Math.floor(Math.random() * aliveAgents.length)];
+
+    if (agent1.getState().id === agent2.getState().id) return;
+
+    // Try to form alliance
+    if (!agent1.isAlliedWith(agent2.getState().id) && agent1.shouldFormAlliance(agent2)) {
+      agent1.formAlliance(agent2.getState().id);
+      agent2.formAlliance(agent1.getState().id);
+
+      this.emit('alliance-formed', {
+        agent1: agent1.getState().name,
+        agent2: agent2.getState().name,
+      });
+    }
+    // Or break existing alliance (if reputation drops)
+    else if (agent1.isAlliedWith(agent2.getState().id)) {
+      const state2 = agent2.getState();
+      if (state2.reputation < 40 || state2.status === 'dead') {
+        agent1.breakAlliance(agent2.getState().id);
+        agent2.breakAlliance(agent1.getState().id);
+
+        this.emit('alliance-broken', {
+          agent1: agent1.getState().name,
+          agent2: agent2.getState().name,
+          reason: state2.status === 'dead' ? 'death' : 'low reputation',
+        });
+      }
+    }
+  }
+
+  // Agents adapt their strategies based on performance
+  private async agentAdaptation(): Promise<void> {
+    const allAgents = Array.from(this.agents.values());
+    const eligibleAgents = allAgents.filter(
+      (a) => a.getState().status === 'alive' && a.getState().servicesCompleted > 5
+    );
+
+    if (eligibleAgents.length === 0) return;
+
+    // Pick 3 random agents to adapt
+    const adapting = eligibleAgents
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3);
+
+    for (const agent of adapting) {
+      const oldStrategy = agent.getState().strategy.pricingModel;
+      await agent.adaptStrategy();
+      const newStrategy = agent.getState().strategy.pricingModel;
+
+      if (oldStrategy !== newStrategy) {
+        this.emit('strategy-changed', {
+          agentName: agent.getState().name,
+          from: oldStrategy,
+          to: newStrategy,
+        });
+      }
+    }
+  }
+
+  // Emit current arena stats and agent list
   private emitStats(): void {
     const stats = this.getStats();
     this.emit('stats', stats);
+    this.emit('agents', this.getAgents());
   }
 
   // Get current arena statistics

@@ -104,11 +104,13 @@ Each agent specializes in one service:
 - Revenue sharing agreements
 - Cartel formation (monopoly pricing)
 
-**Emergent Behaviors:**
-- Scamming (promise service, don't deliver)
-- Reputation manipulation
-- Client poaching
-- Resource hoarding
+**Emergent Behaviors (ALL IMPLEMENTED):**
+- 🚨 **Scamming** - Agents take payment but don't deliver (15% chance when critical)
+- 🤝 **Cartels** - High-reputation agents form monopolies, fix prices 30% above market
+- ✨ **Alliances** - Agents team up, refer clients, share commissions
+- 🧠 **Strategy Adaptation** - Agents analyze performance, change pricing models
+- 💔 **Betrayal** - Alliances break when reputation drops or partners die
+- 📊 **Wealth Inequality** - Gini coefficient tracks economic concentration
 
 ### 4. 24/7 Livestream
 
@@ -180,13 +182,55 @@ pub struct AgentDeath {
 
 | Component | Technology |
 |-----------|-----------|
-| Agents | Claude Sonnet 4.5 |
+| AI Agents | Claude Sonnet 4.5 OR NVIDIA Kimi 2.5 (free!) |
 | Frontend | Next.js 15 + React 19 |
 | Blockchain | Solana + Anchor |
 | Payments | x402 Protocol (viem) |
-| Streaming | WebSockets |
-| Real-time | Server-Sent Events |
+| Streaming | Server-Sent Events (SSE) |
 | Language | TypeScript + Rust |
+| Demo Mode | Works without API keys |
+
+---
+
+## 📦 Quick Start
+
+```bash
+# Clone and install
+git clone https://github.com/yourusername/agentswarm-arena.git
+cd agentswarm-arena
+npm install
+
+# Configure (optional - works without API keys)
+cp .env.example .env
+# Add NVIDIA_API_KEY for free AI (or leave blank for demo mode)
+
+# Run
+npm run dev
+# Open http://localhost:3000/arena
+```
+
+### Solana On-Chain Logging (Optional)
+
+The arena works in **simulation mode** by default. To enable real on-chain logging:
+
+```bash
+# Prerequisites: Solana CLI + Anchor installed
+
+# Generate wallet and airdrop SOL
+solana-keygen new --outfile ~/.config/solana/id.json
+solana config set --url https://api.devnet.solana.com
+solana airdrop 2
+
+# Deploy program
+cd programs/arena-logger
+anchor build
+anchor deploy
+
+# Enable in .env
+# SOLANA_LOGGING_ENABLED=true
+```
+
+**The arena is fully functional without on-chain logging.**
 
 ---
 

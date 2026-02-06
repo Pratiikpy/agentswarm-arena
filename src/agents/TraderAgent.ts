@@ -1,7 +1,7 @@
 // Trader Agent - Executes trades on Jupiter/Raydium
 
 import { BaseAgent } from './BaseAgent';
-import { ServiceRequest } from '../types/agent';
+import { ServiceRequest, ServiceType } from '../types/agent';
 
 export class TraderAgent extends BaseAgent {
   async executeService(request: ServiceRequest): Promise<string> {
@@ -33,7 +33,7 @@ export class TraderAgent extends BaseAgent {
   }
 
   // Override price calculation for trading (higher complexity = higher price)
-  calculatePrice(_serviceType: string, marketPrice: number): number {
+  override calculatePrice(_serviceType: ServiceType, marketPrice: number): number {
     const basePrice = super.calculatePrice('trading', marketPrice);
 
     // Traders charge premium during high volatility
