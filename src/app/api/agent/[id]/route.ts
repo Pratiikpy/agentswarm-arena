@@ -1,6 +1,6 @@
 // API Route - Get agent details
 
-import { getArenaEngine } from '@/lib/arena-singleton';
+import { waitForArena } from '@/lib/arena-singleton';
 import { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const arena = getArenaEngine();
+  const arena = await waitForArena();
   const agent = arena.getAgent(id);
 
   if (!agent) {

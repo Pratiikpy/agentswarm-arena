@@ -1,13 +1,14 @@
 // API Route - Server-Sent Events for livestream
 
-import { getArenaEngine } from '@/lib/arena-singleton';
+import { waitForArena } from '@/lib/arena-singleton';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   const encoder = new TextEncoder();
-  const arena = getArenaEngine();
+  const arena = await waitForArena();
 
   const stream = new ReadableStream({
     start(controller) {
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
       arena.on('history', onHistory);
       arena.on('reasoning', onReasoning);
 
-      // Heartbeat every 30s
+      // Heartbeat every 15s to keep connection alive
       const heartbeat = setInterval(() => {
         if (closed) return;
         try {
@@ -62,7 +63,7 @@ export async function GET(request: Request) {
         } catch {
           // Stream closed
         }
-      }, 30000);
+      }, 15000);
 
       // Cleanup on close
       request.signal.addEventListener('abort', () => {
