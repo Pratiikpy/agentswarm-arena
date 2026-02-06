@@ -174,10 +174,10 @@ export class SolanaLogger {
         .digest()
         .slice(0, 8);
 
-      // Encode instruction data
-      const txIdBytes = Buffer.from(transactionId.slice(0, 50));
-      const fromBytes = Buffer.from(fromAgent.slice(0, 50));
-      const toBytes = Buffer.from(toAgent.slice(0, 50));
+      // Encode instruction data (keep seeds/strings within Solana limits)
+      const txIdBytes = Buffer.from(transactionId.slice(0, 20));
+      const fromBytes = Buffer.from(fromAgent.slice(0, 20));
+      const toBytes = Buffer.from(toAgent.slice(0, 20));
       const serviceBytes = Buffer.from(serviceType.slice(0, 20));
 
       const amountLamports = BigInt(Math.floor(amount * 1_000_000_000));
@@ -199,9 +199,9 @@ export class SolanaLogger {
         encodeString(serviceBytes),
       ]);
 
-      // Derive transaction PDA
+      // Derive transaction PDA (seeds max 32 bytes each)
       const [txPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from('transaction'), Buffer.from(transactionId.slice(0, 50))],
+        [Buffer.from('transaction'), Buffer.from(transactionId.slice(0, 20))],
         this.programId,
       );
 
@@ -258,8 +258,8 @@ export class SolanaLogger {
         .digest()
         .slice(0, 8);
 
-      const agentIdBytes = Buffer.from(agentId.slice(0, 50));
-      const nameBytes = Buffer.from(agentName.slice(0, 50));
+      const agentIdBytes = Buffer.from(agentId.slice(0, 20));
+      const nameBytes = Buffer.from(agentName.slice(0, 20));
 
       const balanceLamports = BigInt(Math.floor(finalBalance * 1_000_000_000));
       const balanceBuf = Buffer.alloc(8);
@@ -283,7 +283,7 @@ export class SolanaLogger {
       ]);
 
       const [deathPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from('death'), Buffer.from(agentId.slice(0, 50))],
+        [Buffer.from('death'), Buffer.from(agentId.slice(0, 20))],
         this.programId,
       );
 
