@@ -114,9 +114,9 @@ export class ArenaEngine extends EventEmitter {
     // 4. Maintain cartels
     CartelBehavior.maintainCartels(Array.from(this.agents.values()));
 
-    // 5. Try to form new cartels (10% chance per tick)
+    // 5. Try to form new cartels via AI negotiation (10% chance per tick)
     if (Math.random() < 0.1) {
-      this.attemptCartelFormation();
+      await this.attemptCartelFormation();
     }
 
     // 6. Form/break alliances (20% chance per tick)
@@ -196,7 +196,7 @@ export class ArenaEngine extends EventEmitter {
         try {
           let result: string;
 
-          const willScam = ScammingBehavior.shouldScam(selectedAgent);
+          const willScam = await ScammingBehavior.shouldScam(selectedAgent, request);
 
           if (willScam) {
             result = await ScammingBehavior.executeScam(selectedAgent, request);
@@ -309,31 +309,37 @@ export class ArenaEngine extends EventEmitter {
     this.emit('balance-redistributed', { amount: balance, recipients: aliveAgents.length });
   }
 
-  // Attempt to form cartels
-  private attemptCartelFormation(): void {
+  // Attempt to form cartels via AI-driven negotiation
+  private async attemptCartelFormation(): Promise<void> {
     const allAgents = Array.from(this.agents.values());
 
-    for (const serviceType of SERVICE_TYPES) {
+    // Only try one service type per tick to limit API calls
+    const shuffledTypes = [...SERVICE_TYPES].sort(() => Math.random() - 0.5);
+
+    for (const serviceType of shuffledTypes) {
       if (CartelBehavior.canFormCartel(allAgents, serviceType)) {
         const recentTxs = this.transactions
           .filter((t) => t.serviceType === serviceType)
           .slice(-10);
 
-        const avgPrice =
+        const marketPrice =
           recentTxs.length > 0
             ? recentTxs.reduce((sum, t) => sum + t.amount, 0) / recentTxs.length
             : 0.08;
 
-        const cartelPrice = avgPrice * 1.3;
-        const members = CartelBehavior.formCartel(allAgents, serviceType, cartelPrice);
+        // AI-negotiated cartel formation — agents decide and propose prices
+        const members = await CartelBehavior.formCartel(allAgents, serviceType, marketPrice);
 
         if (members.length > 0) {
+          const cartelPrice = CartelBehavior.getCartelPrice(serviceType);
           this.emit('cartel-formed', {
             serviceType,
             members: members.length,
             price: cartelPrice,
           });
         }
+
+        break; // Only try one type per tick
       }
     }
   }

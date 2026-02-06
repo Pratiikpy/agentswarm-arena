@@ -5,6 +5,7 @@ interface PriceData {
   price: number;
   confidence: number;
   timestamp: number;
+  isFallback: boolean; // true if using fallback data (live feed unavailable)
 }
 
 interface JupiterQuote {
@@ -74,6 +75,7 @@ export async function getPythPrice(symbol: string): Promise<PriceData> {
       price,
       confidence,
       timestamp: Date.now(),
+      isFallback: false,
     };
 
     priceCache.set(symbol, { data: result, expiresAt: Date.now() + CACHE_TTL });
@@ -93,11 +95,15 @@ function getFallbackPrice(symbol: string): PriceData {
     'JUP/USD': 0.85 + (Math.random() - 0.5) * 0.1,
   };
 
+  const price = fallbacks[symbol] || 1.0;
+  console.warn(`[Pyth] Live feed unavailable for ${symbol}, using fallback: $${price.toFixed(2)}`);
+
   return {
     symbol,
-    price: fallbacks[symbol] || 1.0,
+    price,
     confidence: 0,
     timestamp: Date.now(),
+    isFallback: true,
   };
 }
 
@@ -145,8 +151,9 @@ function getFallbackQuote(
   outputMint: string,
   amountLamports: number,
 ): JupiterQuote {
-  // Simulate a reasonable quote
+  // Simulate a reasonable quote when Jupiter is unavailable
   const slippage = 0.002 + Math.random() * 0.005; // 0.2-0.7% slippage
+  console.warn(`[Jupiter] Quote API unavailable, using simulated quote (slippage: ${(slippage * 100).toFixed(2)}%)`);
   return {
     inputMint,
     outputMint,

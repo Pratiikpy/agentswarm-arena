@@ -3,7 +3,9 @@
 import { Connection, PublicKey, Keypair } from '@solana/web3.js';
 import * as fs from 'fs';
 
-const PROGRAM_ID_STR = process.env.ARENA_PROGRAM_ID || 'ArenaLog11111111111111111111111111111111111';
+// Real deployed program ID on Solana devnet — always use this as fallback (NOT a placeholder)
+const DEPLOYED_PROGRAM_ID = '2ZoSk1adD16aXyXYsornCS8qao2hYb6KSkqyCuYNeKKc';
+const PROGRAM_ID_STR = process.env.ARENA_PROGRAM_ID || DEPLOYED_PROGRAM_ID;
 const RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 const LOGGING_ENABLED = process.env.SOLANA_LOGGING_ENABLED === 'true';
 const WALLET_PATH = process.env.SOLANA_WALLET_PATH || `${process.env.HOME}/.config/solana/id.json`;
@@ -23,26 +25,34 @@ export class SolanaLogger {
     try {
       this.programId = new PublicKey(PROGRAM_ID_STR.trim());
     } catch {
-      console.warn('[Solana] Invalid program ID, falling back to simulation');
-      this.programId = new PublicKey('11111111111111111111111111111111');
+      console.warn(`[Solana] Invalid program ID "${PROGRAM_ID_STR}", using deployed default: ${DEPLOYED_PROGRAM_ID}`);
+      this.programId = new PublicKey(DEPLOYED_PROGRAM_ID);
     }
     this.enabled = LOGGING_ENABLED;
 
-    // Load wallet if available
+    // Load wallet if available — try multiple sources
     if (this.enabled) {
       try {
-        // Try env var first (for Vercel/serverless), then file
         const walletKeyEnv = process.env.SOLANA_WALLET_KEY;
         let walletData: number[];
+
         if (walletKeyEnv) {
+          // Source 1: JSON array in env var (for Vercel/serverless)
           walletData = JSON.parse(walletKeyEnv);
-        } else {
+          console.log('[Solana] Wallet loaded from SOLANA_WALLET_KEY env var');
+        } else if (fs.existsSync(WALLET_PATH)) {
+          // Source 2: Wallet file on disk
           walletData = JSON.parse(fs.readFileSync(WALLET_PATH, 'utf-8'));
+          console.log(`[Solana] Wallet loaded from file: ${WALLET_PATH}`);
+        } else {
+          throw new Error(`No wallet found: SOLANA_WALLET_KEY not set, file not at ${WALLET_PATH}`);
         }
+
         this.wallet = Keypair.fromSecretKey(new Uint8Array(walletData));
-        console.log(`[Solana] Wallet loaded: ${this.wallet.publicKey.toString()}`);
-      } catch {
-        console.warn('[Solana] No wallet found, falling back to simulation mode');
+        console.log(`[Solana] Wallet address: ${this.wallet.publicKey.toString()}`);
+      } catch (err: any) {
+        console.warn(`[Solana] Wallet loading failed: ${err.message}`);
+        console.warn('[Solana] Set SOLANA_WALLET_KEY env var or SOLANA_WALLET_PATH to enable on-chain logging');
         this.enabled = false;
       }
     }
@@ -213,8 +223,10 @@ export class SolanaLogger {
         skipPreflight: true,
       });
 
-      // Don't await confirmation to avoid blocking
-      this.connection.confirmTransaction(sig, 'confirmed').catch(() => {});
+      // Confirm asynchronously — log result but don't block the tick loop
+      this.connection.confirmTransaction(sig, 'confirmed')
+        .then(() => console.log(`[Solana] Tx confirmed: ${sig.slice(0, 16)}...`))
+        .catch((err) => console.warn(`[Solana] Tx confirmation pending: ${sig.slice(0, 16)}... — ${err.message?.slice(0, 50)}`));
 
       return sig;
     } catch (error: any) {

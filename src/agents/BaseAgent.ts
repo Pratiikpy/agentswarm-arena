@@ -8,12 +8,22 @@ import { getAgentName } from './agent-names';
 const SURVIVAL_THRESHOLD = 0.1; // SOL
 const CRITICAL_THRESHOLD = 0.01; // SOL
 
-// Determine AI provider
+// Determine AI provider - prefer Kimi (free), fallback to Anthropic, then demo mode
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+const NVIDIA_API_KEY_FALLBACK = process.env.NVIDIA_API_KEY_FALLBACK;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const USE_KIMI = !!NVIDIA_API_KEY && NVIDIA_API_KEY !== 'nvapi-YOUR-KEY-HERE';
-const USE_ANTHROPIC = !USE_KIMI && !!ANTHROPIC_API_KEY && ANTHROPIC_API_KEY !== 'sk-ant-api-YOUR-KEY-HERE';
+const USE_KIMI = !!NVIDIA_API_KEY && NVIDIA_API_KEY.startsWith('nvapi-') && NVIDIA_API_KEY !== 'nvapi-YOUR-KEY-HERE';
+const USE_ANTHROPIC = !USE_KIMI && !!ANTHROPIC_API_KEY && ANTHROPIC_API_KEY.startsWith('sk-ant-') && ANTHROPIC_API_KEY !== 'sk-ant-api-YOUR-KEY-HERE';
 let DEMO_MODE = !USE_KIMI && !USE_ANTHROPIC;
+
+if (USE_KIMI) {
+  console.log('[AI] Using NVIDIA Kimi 2.5 for agent reasoning (free tier)');
+} else if (USE_ANTHROPIC) {
+  console.log('[AI] Using Anthropic Claude for agent reasoning');
+} else {
+  console.log('[AI] WARNING: No AI provider configured — running in DEMO mode (hardcoded logic)');
+  console.log('[AI] Set NVIDIA_API_KEY in .env for real AI agent reasoning');
+}
 
 // Circuit breaker: after 3 consecutive AI failures, switch to demo mode
 let aiFailCount = 0;
@@ -63,9 +73,9 @@ export class BaseAgent {
       },
     };
 
-    // Initialize AI provider (only log once per type to reduce noise)
+    // Initialize AI provider with fallback key support
     if (USE_KIMI) {
-      this.kimi = new KimiClient(NVIDIA_API_KEY!);
+      this.kimi = new KimiClient(NVIDIA_API_KEY!, NVIDIA_API_KEY_FALLBACK);
     } else if (USE_ANTHROPIC) {
       this.anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY! });
     }
@@ -129,44 +139,56 @@ export class BaseAgent {
       return request.payment >= this.state.strategy.minPrice;
     }
 
-    // DEMO MODE: Simple logic
-    if (DEMO_MODE) {
-      const accept = request.payment >= this.state.strategy.basePrice * 0.8;
-      this.emitReasoning(
-        accept ? 'Accept request' : 'Reject request',
-        [
-          `Payment: ${request.payment.toFixed(3)} SOL`,
-          `Min acceptable: ${(this.state.strategy.basePrice * 0.8).toFixed(3)} SOL`,
-          `Balance: ${this.state.balance.toFixed(3)} SOL`,
-        ],
-        accept ? 0.75 : 0.6,
-        accept ? 'Payment meets threshold' : 'Payment too low for this service',
-      );
-      return accept;
-    }
-
-    // AI MODE: Use Kimi or Claude
+    // Always try AI first (Kimi or Claude), fall back to heuristic only if AI unavailable
     try {
       const decision = await this.makeDecision(
         `Service request: ${request.description}
 Payment: ${request.payment} SOL
 Your balance: ${this.state.balance} SOL
 Your reputation: ${this.state.reputation}
+Your pricing model: ${this.state.strategy.pricingModel}
+Your base price: ${this.state.strategy.basePrice} SOL
 
-Should you accept? Respond ONLY with JSON: {"accept": true/false, "reason": "..."}`
+Should you accept this job? Consider: payment vs your costs, your survival needs, reputation impact.
+Respond ONLY with JSON: {"accept": true/false, "reason": "brief explanation"}`
       );
 
-      const parsed = JSON.parse(decision);
-      this.emitReasoning(
-        parsed.accept ? 'Accept request' : 'Reject request',
-        [`Payment: ${request.payment.toFixed(3)} SOL`, `Reputation: ${this.state.reputation}`],
-        parsed.accept ? 0.8 : 0.65,
-        parsed.reason || 'AI decision',
-      );
-      return parsed.accept === true;
-    } catch (error) {
-      return request.payment >= this.state.strategy.basePrice;
+      // Try to parse AI response as JSON
+      const jsonMatch = decision.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        this.emitReasoning(
+          parsed.accept ? 'Accept request' : 'Reject request',
+          [
+            `Payment: ${request.payment.toFixed(3)} SOL`,
+            `Balance: ${this.state.balance.toFixed(3)} SOL`,
+            `Reputation: ${this.state.reputation}`,
+            `Strategy: ${this.state.strategy.pricingModel}`,
+          ],
+          parsed.accept ? 0.8 + Math.random() * 0.15 : 0.6 + Math.random() * 0.15,
+          parsed.reason || 'AI-driven decision',
+        );
+        return parsed.accept === true;
+      }
+      // If AI returned non-JSON, fall through to heuristic
+    } catch {
+      // AI call failed — use heuristic fallback
     }
+
+    // Heuristic fallback (used when AI unavailable or returns unparseable response)
+    const accept = request.payment >= this.state.strategy.basePrice * 0.8;
+    this.emitReasoning(
+      accept ? 'Accept request' : 'Reject request',
+      [
+        `Payment: ${request.payment.toFixed(3)} SOL`,
+        `Min acceptable: ${(this.state.strategy.basePrice * 0.8).toFixed(3)} SOL`,
+        `Balance: ${this.state.balance.toFixed(3)} SOL`,
+        DEMO_MODE ? 'Mode: heuristic (no AI configured)' : 'Mode: heuristic fallback (AI unavailable)',
+      ],
+      accept ? 0.7 : 0.55,
+      accept ? 'Payment meets threshold (heuristic)' : 'Payment too low (heuristic)',
+    );
+    return accept;
   }
 
   calculatePrice(serviceType: ServiceType, marketPrice: number): number {
@@ -189,42 +211,48 @@ Should you accept? Respond ONLY with JSON: {"accept": true/false, "reason": "...
   }
 
   async executeService(request: ServiceRequest): Promise<string> {
-    // DEMO MODE: Simple response
-    if (DEMO_MODE) {
-      this.state.servicesCompleted++;
-      this.updateBalance(request.payment);
-      this.updateReputation(1);
+    // Base implementation: use AI to generate a service response
+    // Subclasses (TraderAgent, OracleAgent, etc.) override this with real DeFi data
+    this.state.servicesCompleted++;
+    this.updateBalance(request.payment);
+    this.updateReputation(1);
 
-      this.addEvent({
-        type: 'service',
-        description: `Completed ${request.serviceType} service for ${request.payment.toFixed(3)} SOL`,
-      });
+    this.addEvent({
+      type: 'service',
+      description: `Completed ${request.serviceType} service for ${request.payment.toFixed(3)} SOL`,
+    });
 
-      return `[DEMO] ${this.state.type.toUpperCase()} SERVICE
-
+    // Try AI-generated response for richer output
+    if (!DEMO_MODE) {
+      try {
+        const result = await this.makeDecision(
+          `You are providing a ${request.serviceType} service.
 Task: ${request.description}
 Payment: ${request.payment} SOL
 
-Agent: ${this.state.name}
-Balance: ${this.state.balance.toFixed(3)} SOL`;
+Provide a brief, realistic service result (2-3 sentences). Be specific and professional.`
+        );
+        if (result && result !== 'Demo mode') {
+          return `${this.state.type.toUpperCase()} SERVICE — ${this.state.name}
+
+${result}
+
+Payment: ${request.payment} SOL | Balance: ${this.state.balance.toFixed(3)} SOL`;
+        }
+      } catch {
+        // Fall through to basic response
+      }
     }
 
-    throw new Error('executeService must be implemented by subclass');
+    return `${this.state.type.toUpperCase()} SERVICE — ${this.state.name}
+
+Task: ${request.description}
+Payment: ${request.payment} SOL
+Balance: ${this.state.balance.toFixed(3)} SOL`;
   }
 
   protected async makeDecision(prompt: string): Promise<string> {
-    // DEMO MODE
-    if (DEMO_MODE) {
-      if (prompt.includes('Should you accept')) {
-        const payment = parseFloat(prompt.match(/Payment: ([\d.]+)/)?.[1] || '0');
-        const accept = payment >= this.state.strategy.basePrice * 0.8;
-        return JSON.stringify({
-          accept,
-          reason: accept ? 'Payment acceptable' : 'Payment too low',
-        });
-      }
-      return 'Demo mode';
-    }
+    // Try AI providers first (Kimi, then Anthropic), fall back to heuristic only if both fail
 
     // KIMI MODE (FREE!)
     if (USE_KIMI && this.kimi) {
@@ -283,16 +311,38 @@ Survive by earning. Below 0.01 SOL = death.`,
       return message;
     }
 
-    // Demo fallback (reached after AI failure or no provider)
+    // Heuristic fallback (reached after AI failure or no provider configured)
     if (prompt.includes('Should you accept')) {
       const payment = parseFloat(prompt.match(/Payment: ([\d.]+)/)?.[1] || '0');
       const accept = payment >= this.state.strategy.basePrice * 0.8;
       return JSON.stringify({
         accept,
-        reason: accept ? 'Payment acceptable' : 'Payment too low',
+        reason: accept
+          ? `Payment ${payment.toFixed(3)} SOL exceeds minimum threshold`
+          : `Payment ${payment.toFixed(3)} SOL below minimum ${(this.state.strategy.basePrice * 0.8).toFixed(3)} SOL`,
       });
     }
-    return 'Demo mode';
+    if (prompt.includes('Should you scam') || prompt.includes('scam')) {
+      // Default: don't scam unless truly desperate
+      const desperate = this.state.balance < 0.05;
+      return JSON.stringify({
+        scam: desperate,
+        reasoning: desperate
+          ? `Balance critically low at ${this.state.balance.toFixed(3)} SOL — desperate measures needed`
+          : `Balance at ${this.state.balance.toFixed(3)} SOL — scamming not worth the reputation hit`,
+      });
+    }
+    if (prompt.includes('cartel') || prompt.includes('Cartel')) {
+      const shouldJoin = this.state.reputation > 65 && this.state.balance > 0.5;
+      return JSON.stringify({
+        join: shouldJoin,
+        proposed_price_multiplier: shouldJoin ? 1.2 + Math.random() * 0.2 : 1.0,
+        reasoning: shouldJoin
+          ? 'Cartel membership would stabilize income at premium rates'
+          : 'Current position does not warrant cartel risk',
+      });
+    }
+    return `${this.state.type} analysis completed for the requested task.`;
   }
 
   getState(): Readonly<AgentState> {
@@ -389,10 +439,10 @@ Survive by earning. Below 0.01 SOL = death.`,
       return;
     }
 
-    if (DEMO_MODE || this.state.servicesCompleted < 5) return;
+    if (this.state.servicesCompleted < 5) return;
 
-    // AI adaptation
-    if ((USE_KIMI || USE_ANTHROPIC) && this.state.servicesCompleted > 10) {
+    // AI adaptation (or heuristic fallback)
+    if (this.state.servicesCompleted > 10) {
       try {
         const analysis = await this.makeDecision(
           `Performance analysis:

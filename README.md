@@ -123,32 +123,32 @@ echo '<PAYMENT-REQUIRED value>' | base64 -d | jq .
 
 ## Agent Types (10 Specializations)
 
-| Agent | Service | DeFi Integration | Example Output |
-|-------|---------|-----------------|----------------|
-| **Trader** | Executes swaps | Jupiter quote API (live) | "100 USDC → 0.54 SOL, 0.2% impact" |
-| **Oracle** | Price feeds | Pyth Network (live) | "SOL/USD: $185.42, BTC: $95,231" |
-| **Arbitrage** | Cross-DEX spreads | Jupiter multi-route | "SOL/USDC spread: 0.3%, profitable" |
-| **Security** | Contract audits | — | Vulnerability assessment |
-| **Research** | Market analysis | — | Token analysis + sentiment |
-| **Liquidity** | LP management | — | Pool optimization |
-| **Sentiment** | Social analysis | — | Twitter/Discord tracking |
-| **Risk** | Portfolio risk | — | Risk scoring + alerts |
-| **Yield** | Farm optimization | — | APY comparison |
-| **DAO** | Governance | — | Proposal tracking |
+| Agent | Service | Data Source | Integration |
+|-------|---------|-------------|-------------|
+| **Trader** | Executes swaps | Jupiter quote API (live) | Real DeFi data |
+| **Oracle** | Price feeds | Pyth Network (live) | Real DeFi data |
+| **Arbitrage** | Cross-DEX spreads | Jupiter multi-route (live) | Real DeFi data |
+| **Security** | Contract audits | AI analysis | AI-powered |
+| **Research** | Market analysis | AI analysis | AI-powered |
+| **Liquidity** | LP management | AI analysis | AI-powered |
+| **Sentiment** | Social analysis | AI analysis | AI-powered |
+| **Risk** | Portfolio risk | AI analysis | AI-powered |
+| **Yield** | Farm optimization | AI analysis | AI-powered |
+| **DAO** | Governance | AI analysis | AI-powered |
 
 ---
 
-## Emergent Behaviors (All Autonomous)
+## Emergent Behaviors (AI-Driven)
 
-These behaviors emerge from AI reasoning — **not scripted**:
+These behaviors are driven by AI reasoning with probabilistic weighting — agents actively reason about each decision, and their reasoning influences the outcome probability:
 
 | Behavior | Trigger | Mechanism |
 |----------|---------|-----------|
-| **Scamming** | Balance < 0.1 SOL | 15% chance: take payment, don't deliver |
-| **Cartels** | 3+ high-rep agents same type | Fix prices 30% above market |
-| **Alliances** | Compatible types, rep > 60 | Refer clients, share commissions |
+| **Scamming** | Balance < 0.1 SOL | AI reasons about survival vs reputation; weighs scam probability (2-25%) |
+| **Cartels** | 3+ same-type agents | Multi-agent AI negotiation: each agent votes on joining and proposes prices |
+| **Alliances** | Compatible types, rep > 60 | Agents form partnerships across service types |
 | **Betrayal** | Partner rep drops < 40 | Break alliance, compete |
-| **Adaptation** | Every 25 transactions | AI changes pricing strategy |
+| **Adaptation** | Every 25 transactions | AI analyzes performance and adjusts pricing strategy |
 | **Death** | Balance < 0.01 SOL | Permanent elimination, wealth redistributed |
 
 ---
@@ -209,6 +209,23 @@ Redistribution:      50% to random agent, 50% split equally
 - Click any agent → full history: balance, services, alliances, strategies
 - Event timeline with color-coded types
 - Solana Explorer links for on-chain transactions
+
+---
+
+## Architecture Transparency
+
+We believe in honest engineering. Here's what's real and what's simulated:
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| **AI Agent Reasoning** | Real | Kimi 2.5 or Claude powers all agent decisions (with heuristic fallback) |
+| **Pyth Price Feeds** | Real | Live API calls with transparent fallback warnings |
+| **Jupiter Quotes** | Real | Live API calls with transparent fallback warnings |
+| **x402 Protocol** | Real handshake | HTTP 402 headers follow x402.org spec; settlement is in-memory simulation |
+| **On-Chain Logging** | Real (when configured) | Transactions logged to Solana devnet via deployed Anchor program |
+| **Agent Balances** | Simulated | In-memory ledger (not SPL token accounts) |
+| **Scamming/Cartels** | AI-driven | Agents reason about decisions; AI output weights probabilities |
+| **Betting** | Devnet | Real Solana transactions on devnet (test SOL) |
 
 ---
 

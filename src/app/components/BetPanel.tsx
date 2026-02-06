@@ -10,7 +10,12 @@ interface BetPanelProps {
   agents: AgentState[];
 }
 
-const ARENA_WALLET = new PublicKey('ArenaLog11111111111111111111111111111111111'); // Arena treasury
+// Arena treasury — derived from deployed Anchor program on devnet
+const ARENA_PROGRAM_ID = new PublicKey('2ZoSk1adD16aXyXYsornCS8qao2hYb6KSkqyCuYNeKKc');
+const [ARENA_WALLET] = PublicKey.findProgramAddressSync(
+  [Buffer.from('arena'), Buffer.from('agentswarm-arena-v1')],
+  ARENA_PROGRAM_ID,
+);
 
 export function BetPanel({ agents }: BetPanelProps) {
   const { publicKey, sendTransaction, connected } = useWallet();
