@@ -38,7 +38,7 @@ export class SolanaLogger {
 
         if (walletKeyEnv) {
           // Source 1: JSON array in env var (for Vercel/serverless)
-          walletData = JSON.parse(walletKeyEnv);
+          walletData = JSON.parse(walletKeyEnv.trim());
           console.log('[Solana] Wallet loaded from SOLANA_WALLET_KEY env var');
         } else if (fs.existsSync(WALLET_PATH)) {
           // Source 2: Wallet file on disk
