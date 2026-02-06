@@ -26,7 +26,14 @@ export class SolanaLogger {
     // Load wallet if available
     if (this.enabled) {
       try {
-        const walletData = JSON.parse(fs.readFileSync(WALLET_PATH, 'utf-8'));
+        // Try env var first (for Vercel/serverless), then file
+        const walletKeyEnv = process.env.SOLANA_WALLET_KEY;
+        let walletData: number[];
+        if (walletKeyEnv) {
+          walletData = JSON.parse(walletKeyEnv);
+        } else {
+          walletData = JSON.parse(fs.readFileSync(WALLET_PATH, 'utf-8'));
+        }
         this.wallet = Keypair.fromSecretKey(new Uint8Array(walletData));
         console.log(`[Solana] Wallet loaded: ${this.wallet.publicKey.toString()}`);
       } catch {
