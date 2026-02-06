@@ -534,4 +534,16 @@ export class ArenaEngine extends EventEmitter {
   getHistory(): BalanceSnapshot[] {
     return this.balanceHistory.slice(-50);
   }
+
+  getDebugInfo(): Record<string, any> {
+    return {
+      tickCount: this.tickCount,
+      totalAgents: this.agents.size,
+      pendingRequests: this.serviceRequests.filter(r => r.status === 'pending').length,
+      completedRequests: this.serviceRequests.filter(r => r.status === 'completed').length,
+      failedRequests: this.serviceRequests.filter(r => r.status === 'failed').length,
+      totalTransactions: this.transactions.length,
+      running: this.running,
+    };
+  }
 }
