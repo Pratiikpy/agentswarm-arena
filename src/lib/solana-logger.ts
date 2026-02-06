@@ -232,7 +232,9 @@ export class SolanaLogger {
 
       return sig;
     } catch (error: any) {
-      console.error(`[Solana] Failed to log transaction: ${error.message}`);
+      const errMsg = error.message || String(error);
+      console.error(`[Solana] Failed to log transaction: ${errMsg}`);
+      this.initError = `logTx: ${errMsg.slice(0, 100)}`;
       return `sim_err_${Date.now().toString(36)}`;
     }
   }
