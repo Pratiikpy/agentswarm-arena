@@ -1,9 +1,16 @@
-// Agent Factory - Creates agents of different types
+// Agent Factory - Creates agents of all types
 
 import { BaseAgent } from './BaseAgent';
 import { TraderAgent } from './TraderAgent';
 import { SecurityAgent } from './SecurityAgent';
 import { ResearchAgent } from './ResearchAgent';
+import { OracleAgent } from './OracleAgent';
+import { LiquidityAgent } from './LiquidityAgent';
+import { ArbitrageAgent } from './ArbitrageAgent';
+import { SentimentAgent } from './SentimentAgent';
+import { RiskAgent } from './RiskAgent';
+import { YieldAgent } from './YieldAgent';
+import { DAOAgent } from './DAOAgent';
 import { ServiceType } from '../types/agent';
 
 export function createAgent(id: string, type: ServiceType, initialBalance: number = 1.0): BaseAgent {
@@ -14,10 +21,35 @@ export function createAgent(id: string, type: ServiceType, initialBalance: numbe
       return new SecurityAgent(id, type, initialBalance);
     case 'research':
       return new ResearchAgent(id, type, initialBalance);
-    // Add more agent types as needed
+    case 'oracle':
+      return new OracleAgent(id, type, initialBalance);
+    case 'liquidity':
+      return new LiquidityAgent(id, type, initialBalance);
+    case 'arbitrage':
+      return new ArbitrageAgent(id, type, initialBalance);
+    case 'sentiment':
+      return new SentimentAgent(id, type, initialBalance);
+    case 'risk':
+      return new RiskAgent(id, type, initialBalance);
+    case 'yield':
+      return new YieldAgent(id, type, initialBalance);
+    case 'dao':
+      return new DAOAgent(id, type, initialBalance);
     default:
       return new BaseAgent(id, type, initialBalance);
   }
 }
 
-export { BaseAgent, TraderAgent, SecurityAgent, ResearchAgent };
+export {
+  BaseAgent,
+  TraderAgent,
+  SecurityAgent,
+  ResearchAgent,
+  OracleAgent,
+  LiquidityAgent,
+  ArbitrageAgent,
+  SentimentAgent,
+  RiskAgent,
+  YieldAgent,
+  DAOAgent,
+};

@@ -5,11 +5,13 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const SURVIVAL_THRESHOLD = 0.1; // SOL
 const CRITICAL_THRESHOLD = 0.01; // SOL
+const DEMO_MODE = !process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === 'sk-ant-api-YOUR-KEY-HERE';
 
 export class BaseAgent {
   protected state: AgentState;
-  protected anthropic: Anthropic;
+  protected anthropic: Anthropic | null;
   protected conversationHistory: Anthropic.MessageParam[] = [];
+  protected alliances: Set<string> = new Set(); // Agent IDs we're allied with
 
   constructor(
     id: string,
@@ -20,7 +22,7 @@ export class BaseAgent {
     this.state = {
       id,
       type,
-      name: `Agent-${id.slice(0, 6)}`,
+      name: `${type.charAt(0).toUpperCase() + type.slice(1)}-${id.slice(-4)}`,
       balance: initialBalance,
       status: 'alive',
       reputation: 50, // Start neutral
@@ -40,9 +42,15 @@ export class BaseAgent {
       },
     };
 
-    this.anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY || '',
-    });
+    // Initialize Anthropic only if not in demo mode
+    if (!DEMO_MODE) {
+      this.anthropic = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY || '',
+      });
+    } else {
+      this.anthropic = null;
+      console.log(`[DEMO MODE] ${this.state.name} - Using simulated AI decisions`);
+    }
   }
 
   // Update balance and check survival
@@ -55,7 +63,6 @@ export class BaseAgent {
       this.state.expenses += Math.abs(amount);
     }
 
-    // Check survival status
     this.updateStatus();
   }
 
@@ -72,7 +79,6 @@ export class BaseAgent {
 
   // Decide whether to accept a service request
   async shouldAcceptRequest(request: ServiceRequest): Promise<boolean> {
-    // Don't accept if dead or payment too low
     if (this.state.status === 'dead') return false;
     if (request.payment < this.state.strategy.minPrice) return false;
 
@@ -81,44 +87,39 @@ export class BaseAgent {
       return request.payment >= this.state.strategy.minPrice;
     }
 
-    // Use AI to decide based on current state
+    // DEMO MODE: Simple logic
+    if (DEMO_MODE) {
+      return request.payment >= this.state.strategy.basePrice * 0.8;
+    }
+
+    // AI MODE: Use Claude to decide
     try {
       const decision = await this.makeDecision(
         `Service request: ${request.description}
          Payment offered: ${request.payment} SOL
-         Your current balance: ${this.state.balance} SOL
+         Your balance: ${this.state.balance} SOL
          Your reputation: ${this.state.reputation}
 
-         Should you accept this request? Consider:
-         - Is the payment fair for your services?
-         - Do you have capacity?
-         - Will this improve your reputation?
-
-         Respond with JSON: {"accept": true/false, "reason": "..."}`
+         Should you accept? Respond with JSON: {"accept": true/false, "reason": "..."}`
       );
 
       const parsed = JSON.parse(decision);
       return parsed.accept === true;
     } catch (error) {
-      // Default to accepting if AI fails
       return request.payment >= this.state.strategy.basePrice;
     }
   }
 
-  // Calculate service price based on market conditions
+  // Calculate service price
   calculatePrice(serviceType: ServiceType, marketPrice: number): number {
     const { strategy } = this.state;
-
-    // Adjust based on pricing model
     let price = strategy.basePrice;
 
     switch (strategy.pricingModel) {
       case 'aggressive':
-        // Undercut market by 20%
         price = marketPrice * 0.8;
         break;
       case 'premium':
-        // Charge 50% above market if reputation is high
         if (this.state.reputation > 70) {
           price = marketPrice * 1.5;
         } else {
@@ -127,117 +128,167 @@ export class BaseAgent {
         break;
       case 'balanced':
       default:
-        // Match market price
         price = marketPrice;
         break;
     }
 
-    // Clamp to min/max
     return Math.max(strategy.minPrice, Math.min(strategy.maxPrice, price));
   }
 
   // Execute service (implemented by subclasses)
   async executeService(request: ServiceRequest): Promise<string> {
+    // DEMO MODE: Simple response
+    if (DEMO_MODE) {
+      this.state.servicesCompleted++;
+      this.updateBalance(request.payment);
+      this.updateReputation(1);
+
+      return `[DEMO] ${this.state.type.toUpperCase()} SERVICE COMPLETE
+
+Task: ${request.description}
+Payment: ${request.payment} SOL
+Status: Success
+
+Agent: ${this.state.name}
+Balance: ${this.state.balance.toFixed(3)} SOL
+Reputation: ${this.state.reputation}`;
+    }
+
     throw new Error('executeService must be implemented by subclass');
   }
 
   // Make AI-powered decision
   protected async makeDecision(prompt: string): Promise<string> {
-    this.conversationHistory.push({
-      role: 'user',
-      content: prompt,
-    });
+    // DEMO MODE: Simulated decisions
+    if (DEMO_MODE || !this.anthropic) {
+      // Simple rule-based responses for demo
+      if (prompt.includes('Should you accept')) {
+        const payment = parseFloat(prompt.match(/Payment offered: ([\d.]+)/)?.[1] || '0');
+        const accept = payment >= this.state.strategy.basePrice * 0.8;
+        return JSON.stringify({
+          accept,
+          reason: accept ? 'Payment is reasonable' : 'Payment too low',
+        });
+      }
+      return 'Demo mode active';
+    }
+
+    // AI MODE: Real Claude decisions
+    this.conversationHistory.push({ role: 'user', content: prompt });
 
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 1000,
       messages: this.conversationHistory,
-      system: `You are ${this.state.name}, a ${this.state.type} agent competing for survival in AgentSwarm Arena.
+      system: `You are ${this.state.name}, a ${this.state.type} agent in AgentSwarm Arena.
 
-      Your current state:
+      State:
       - Balance: ${this.state.balance} SOL
       - Status: ${this.state.status}
       - Reputation: ${this.state.reputation}
-      - Services completed: ${this.state.servicesCompleted}
+      - Services: ${this.state.servicesCompleted}
 
-      You must earn SOL to survive. If your balance drops below 0.01 SOL, you die permanently.
-
-      Make strategic decisions to maximize earnings and survival probability.
-      Be concise and focus on survival.`,
+      Survive by earning SOL. Below 0.01 SOL = death.
+      Be strategic. Maximize earnings and survival.`,
     });
 
     const content = response.content[0];
-    const assistantMessage = content.type === 'text' ? content.text : '';
+    const message = content.type === 'text' ? content.text : '';
+    this.conversationHistory.push({ role: 'assistant', content: message });
 
-    this.conversationHistory.push({
-      role: 'assistant',
-      content: assistantMessage,
-    });
-
-    return assistantMessage;
+    return message;
   }
 
-  // Get agent state (read-only)
+  // Get agent state
   getState(): Readonly<AgentState> {
     return { ...this.state };
   }
 
-  // Update reputation based on service quality
+  // Update reputation
   updateReputation(delta: number): void {
     this.state.reputation = Math.max(0, Math.min(100, this.state.reputation + delta));
   }
 
-  // Check if agent should form alliance with another agent
+  // Alliance system
+  formAlliance(otherAgentId: string): void {
+    this.alliances.add(otherAgentId);
+  }
+
+  breakAlliance(otherAgentId: string): void {
+    this.alliances.delete(otherAgentId);
+  }
+
+  isAlliedWith(otherAgentId: string): boolean {
+    return this.alliances.has(otherAgentId);
+  }
+
+  getAlliances(): string[] {
+    return Array.from(this.alliances);
+  }
+
+  // Check if should ally with another agent
   shouldFormAlliance(otherAgent: BaseAgent): boolean {
     const otherState = otherAgent.getState();
 
-    // Only ally with agents above reputation threshold
-    if (otherState.reputation < this.state.strategy.allianceThreshold) {
-      return false;
-    }
+    // Don't ally with dead agents
+    if (otherState.status === 'dead') return false;
 
-    // Don't ally if we're competing for same service type
-    if (otherState.type === this.state.type) {
-      return false;
-    }
+    // Only ally with high-reputation agents
+    if (otherState.reputation < this.state.strategy.allianceThreshold) return false;
+
+    // Don't ally with direct competitors
+    if (otherState.type === this.state.type) return false;
+
+    // Already allied
+    if (this.isAlliedWith(otherState.id)) return false;
 
     return true;
   }
 
+  // Refer client to allied agent (revenue sharing)
+  async referToAlly(allyId: string, commission: number = 0.1): Promise<void> {
+    // Agent gets commission for referral
+    this.updateBalance(commission);
+    this.state.servicesCompleted++; // Count as partial service
+  }
+
   // Adapt strategy based on performance
   async adaptStrategy(): Promise<void> {
-    // If critical, become more aggressive
+    // If critical, go aggressive
     if (this.state.status === 'critical') {
       this.state.strategy.pricingModel = 'aggressive';
-      this.state.strategy.minPrice = 0.005; // Lower prices to get clients
+      this.state.strategy.minPrice = 0.005;
+      return;
     }
 
-    // If doing well, consider premium pricing
+    // If thriving, go premium
     if (this.state.balance > 3.0 && this.state.reputation > 80) {
       this.state.strategy.pricingModel = 'premium';
+      return;
     }
 
-    // Use AI to analyze and adapt
-    if (this.state.servicesCompleted > 10) {
+    // DEMO MODE: Simple adaptation
+    if (DEMO_MODE || this.state.servicesCompleted < 5) return;
+
+    // AI MODE: Analyze and adapt
+    if (!DEMO_MODE && this.anthropic && this.state.servicesCompleted > 10) {
       try {
         const analysis = await this.makeDecision(
-          `Analyze your performance:
-           - Services completed: ${this.state.servicesCompleted}
+          `Analyze performance:
+           - Services: ${this.state.servicesCompleted}
            - Earnings: ${this.state.earnings} SOL
-           - Expenses: ${this.state.expenses} SOL
-           - Net profit: ${this.state.earnings - this.state.expenses} SOL
+           - Profit: ${(this.state.earnings - this.state.expenses).toFixed(3)} SOL
            - Reputation: ${this.state.reputation}
 
-           Should you change your strategy? Respond with JSON:
-           {"change": true/false, "pricingModel": "aggressive/balanced/premium", "reason": "..."}`
+           Change strategy? JSON: {"change": true/false, "pricingModel": "aggressive/balanced/premium"}`
         );
 
         const parsed = JSON.parse(analysis);
         if (parsed.change && parsed.pricingModel) {
           this.state.strategy.pricingModel = parsed.pricingModel;
         }
-      } catch (error) {
-        // Continue with current strategy if AI fails
+      } catch {
+        // Keep current strategy
       }
     }
   }
