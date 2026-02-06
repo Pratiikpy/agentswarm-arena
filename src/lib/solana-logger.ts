@@ -7,9 +7,9 @@ import * as fs from 'fs';
 const DEPLOYED_PROGRAM_ID = '2ZoSk1adD16aXyXYsornCS8qao2hYb6KSkqyCuYNeKKc';
 const PROGRAM_ID_STR = process.env.ARENA_PROGRAM_ID || DEPLOYED_PROGRAM_ID;
 const RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-const LOGGING_ENABLED = process.env.SOLANA_LOGGING_ENABLED === 'true';
+const LOGGING_ENABLED = process.env.SOLANA_LOGGING_ENABLED?.trim() === 'true';
 const WALLET_PATH = process.env.SOLANA_WALLET_PATH || `${process.env.HOME}/.config/solana/id.json`;
-const ARENA_ID = process.env.ARENA_ID || 'agentswarm-arena-v1';
+const ARENA_ID = (process.env.ARENA_ID || 'agentswarm-arena-v1').trim();
 
 export class SolanaLogger {
   private connection: Connection;
@@ -19,6 +19,7 @@ export class SolanaLogger {
   private arenaInitialized: boolean = false;
   private arenaPda: PublicKey | null = null;
   private txCount: number = 0;
+  private initError: string = '';
 
   constructor() {
     this.connection = new Connection(RPC_URL, 'confirmed');
@@ -51,7 +52,8 @@ export class SolanaLogger {
         this.wallet = Keypair.fromSecretKey(new Uint8Array(walletData));
         console.log(`[Solana] Wallet address: ${this.wallet.publicKey.toString()}`);
       } catch (err: any) {
-        console.warn(`[Solana] Wallet loading failed: ${err.message}`);
+        this.initError = err.message || String(err);
+        console.warn(`[Solana] Wallet loading failed: ${this.initError}`);
         console.warn('[Solana] Set SOLANA_WALLET_KEY env var or SOLANA_WALLET_PATH to enable on-chain logging');
         this.enabled = false;
       }
@@ -387,6 +389,10 @@ export class SolanaLogger {
 
   getArenaPda(): string {
     return this.arenaPda?.toString() || '';
+  }
+
+  getInitError(): string {
+    return this.initError;
   }
 }
 
