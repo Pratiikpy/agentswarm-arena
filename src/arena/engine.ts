@@ -212,8 +212,8 @@ export class ArenaEngine extends EventEmitter {
           request.status = 'completed';
           request.completedAt = Date.now();
 
-          // Route payment through x402
-          const x402Payment = x402Client.executePayment(
+          // Route payment through x402 — settles on-chain via Solana Anchor program
+          const x402Payment = await x402Client.executePayment(
             request.clientId,
             request.agentId,
             request.payment,
@@ -222,14 +222,11 @@ export class ArenaEngine extends EventEmitter {
             () => {}, // Agent balance already updated in executeService
           );
 
-          // Log transaction on-chain (fire-and-forget)
-          const txId = `tx-${Date.now()}`;
-          const solanaSig = solanaLogger
-            .logTransaction(txId, request.clientId, request.agentId, request.payment, request.serviceType)
-            .catch(() => null);
+          // x402 settlement already logged on-chain — the transactionHash IS the Solana signature
+          const solanaSig = x402Payment.paymentResponse?.transactionHash || null;
 
           const tx: Transaction = {
-            id: txId,
+            id: x402Payment.id,
             from: request.clientId,
             to: request.agentId,
             amount: request.payment,
@@ -237,16 +234,13 @@ export class ArenaEngine extends EventEmitter {
             timestamp: Date.now(),
             onChain: solanaLogger.isEnabled(),
             x402PaymentId: x402Payment.id,
-            x402TxHash: x402Payment.paymentResponse?.transactionHash,
+            x402TxHash: solanaSig || undefined,
+            solanaTxSignature: solanaSig && !solanaSig.startsWith('sim_') ? solanaSig : undefined,
           };
 
-          // Attach Solana signature when ready
-          solanaSig.then((sig) => {
-            if (sig) {
-              tx.solanaTxSignature = sig;
-              selectedAgent.setSolanaTxSignature(sig);
-            }
-          });
+          if (solanaSig) {
+            selectedAgent.setSolanaTxSignature(solanaSig);
+          }
 
           this.transactions.push(tx);
 

@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
   // Step 3: Verify payment and deliver service
   try {
     const paymentSignature = X402Client.decodePaymentSignature(paymentSignatureHeader);
-    const settlement = x402Client.verifyAndSettle(paymentSignature);
+    const settlement = await x402Client.verifyAndSettle(paymentSignature, serviceType);
 
     if (!settlement.valid) {
       return new NextResponse(
