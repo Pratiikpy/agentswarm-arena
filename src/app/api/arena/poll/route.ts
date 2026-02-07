@@ -1,22 +1,22 @@
 // Polling endpoint - runs a tick and returns current state
 // Used on Vercel where SSE streaming doesn't work reliably
 
-import { waitForArena } from '@/lib/arena-singleton';
+import { getArenaEngine } from '@/lib/arena-singleton';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 10;
+export const maxDuration = 60;
 
 export async function GET() {
-  const arena = await waitForArena();
+  const arena = getArenaEngine();
 
-  // Run a tick
+  // Try to run a tick (may fail on cold start while agents initialize)
   try {
     await arena.runTick();
   } catch (err) {
     console.error('Arena tick error:', err);
   }
 
-  // Collect state
+  // Collect state - always return whatever is available
   const stats = arena.getStats();
   const recentTransactions = arena.getRecentTransactions(10);
   const history = arena.getHistory();
